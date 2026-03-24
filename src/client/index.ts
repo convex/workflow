@@ -12,6 +12,7 @@ import {
   type GenericDataModel,
   type GenericMutationCtx,
   type GenericQueryCtx,
+  type MutationBuilder,
   type PaginationOptions,
   type PaginationResult,
   type RegisteredMutation,
@@ -99,17 +100,38 @@ export type CallbackOptions<Context = unknown> =
 export type WorkflowDefinition<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void = any,
+  DataModel extends GenericDataModel = GenericDataModel,
 > = {
   args?: ArgsValidator;
   returns?: ReturnsValidator;
   workpoolOptions?: WorkpoolRetryOptions;
+  /**
+   * Provide your app's `internalMutation` (from `_generated/server`) to get
+   * a fully typed `ctx` in `ctx.run()` handlers, with your data model's
+   * tables available on `ctx.db`. This also lets any custom middleware
+   * you've configured run around the workflow.
+   *
+   * ```ts
+   * import { internalMutation } from "./_generated/server";
+   * workflow.define({
+   *   internalMutation,
+   *   handler: async (ctx, args) => {
+   *     const user = await ctx.run(async (ctx) => {
+   *       return ctx.db.query("users").first(); // fully typed
+   *     });
+   *   },
+   * });
+   * ```
+   */
+  internalMutation?: MutationBuilder<DataModel, "internal">;
 };
 
 export type WorkflowHandler<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void,
+  DataModel extends GenericDataModel,
 > = (
-  step: WorkflowCtx,
+  step: WorkflowCtx<DataModel>,
   args: ObjectType<ArgsValidator>,
 ) => Promise<ReturnValueForOptionalValidator<ReturnsValidator>>;
 
@@ -517,9 +539,10 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
+    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-      handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel> & {
+      handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): RegisteredMutation<
     "internal",
@@ -529,8 +552,9 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
+    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator>,
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel>,
   ): {
     /**
      * Define the workflow handler function.

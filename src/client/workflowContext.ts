@@ -9,6 +9,8 @@ import type {
   FunctionReturnType,
   FunctionType,
   FunctionVisibility,
+  GenericDataModel,
+  GenericMutationCtx,
 } from "convex/server";
 import { ConvexError, type Validator } from "convex/values";
 import type { EventId, SchedulerOptions, WorkflowId } from "../types.js";
@@ -73,7 +75,9 @@ type InlineArgs =
       transactionLimits?: TransactionLimits;
     };
 
-export type WorkflowCtx = {
+export type WorkflowCtx<
+  DataModel extends GenericDataModel = GenericDataModel,
+> = {
   /**
    * The ID of the workflow currently running.
    */
@@ -138,6 +142,43 @@ export type WorkflowCtx = {
     args: FunctionArgs<Workflow>["args"],
     opts?: RunOptions,
   ): Promise<WorkflowReturnType<Workflow>>;
+
+  /**
+   * Run a handler inline within the workflow's mutation transaction.
+   * The result is journaled like any other step, so on replay it returns the
+   * saved value without re-executing the handler.
+   *
+   * This gives direct access to the underlying mutation context, allowing
+   * database reads/writes, running queries, and scheduling functions all
+   * within the same transaction as the workflow handler.
+   *
+   * The handler can read from variables in the enclosing scope, but should
+   * not modify them — on replay the handler is skipped and the journaled
+   * result is returned, so any side effects outside the handler's return
+   * value will not be replayed.
+   *
+   * To get a fully typed `ctx` with your data model, provide your app's
+   * `internalMutation` in the workflow definition:
+   *
+   * ```ts
+   * import { internalMutation } from "./_generated/server";
+   * workflow.define({
+   *   internalMutation,
+   *   handler: async (ctx, args) => {
+   *     const user = await ctx.run(async (ctx) => {
+   *       return ctx.db.query("users").first(); // fully typed
+   *     });
+   *   },
+   * });
+   * ```
+   *
+   * @param handler - A function receiving the mutation context to run inline.
+   * @param opts - Options for naming the step.
+   */
+  run<T>(
+    handler: (ctx: GenericMutationCtx<DataModel>) => T | Promise<T>,
+    opts?: { name?: string },
+  ): Promise<T>;
 
   /**
    * Blocks until a matching event is sent to this workflow.
@@ -206,6 +247,22 @@ export function createWorkflowCtx(
 
     runAction: async (action, args, opts?) => {
       return runFunction(sender, "action", action, args, opts, defaults);
+    },
+
+    run: async (handler, opts?) => {
+      return run(sender, {
+        name: opts?.name ?? "run",
+        target: {
+          kind: "inline",
+          handler: handler as (
+            ctx: GenericMutationCtx<GenericDataModel>,
+          ) => Promise<unknown>,
+          args: {} as Record<string, never>,
+        },
+        retry: undefined,
+        inline: true,
+        schedulerOptions: {},
+      }) as any;
     },
 
     runWorkflow: async (workflow, args, opts?) => {

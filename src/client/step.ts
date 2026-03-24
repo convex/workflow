@@ -47,6 +47,13 @@ export type StepRequest = {
     | {
         kind: "sleep";
         args: Record<string, never>;
+      }
+    | {
+        kind: "inline";
+        handler: (
+          ctx: GenericMutationCtx<GenericDataModel>,
+        ) => Promise<unknown>;
+        args: Record<string, never>;
       };
   retry: RetryBehavior | boolean | undefined;
   inline: boolean;
@@ -164,33 +171,42 @@ export class StepExecutor {
 
         let runResult: RunResult | undefined;
         if (message.inline) {
-          if (target.kind !== "function" || target.functionType === "action") {
+          if (target.kind === "inline") {
+            try {
+              const returnValue = (await target.handler(this.ctx)) ?? null;
+              runResult = { kind: "success", returnValue };
+            } catch (error: unknown) {
+              runResult = failedResult(error);
+            }
+          } else if (
+            target.kind === "function" &&
+            target.functionType !== "action"
+          ) {
+            try {
+              const result =
+                target.functionType === "query"
+                  ? await (this.ctx.runQuery as any)(
+                      target.function as FunctionReference<
+                        typeof target.functionType
+                      >,
+                      target.args,
+                      { transactionLimits: message.transactionLimits },
+                    )
+                  : await (this.ctx.runMutation as any)(
+                      target.function as FunctionReference<
+                        typeof target.functionType
+                      >,
+                      target.args,
+                      { transactionLimits: message.transactionLimits },
+                    );
+              runResult = { kind: "success", returnValue: result ?? null };
+            } catch (error: unknown) {
+              runResult = failedResult(error);
+            }
+          } else {
             throw new Error(
-              "Inline execution is only supported for queries and mutations.",
+              "Inline execution is only supported for queries, mutations, and inline handlers.",
             );
-          }
-          try {
-            const result =
-              target.functionType === "query"
-                ? // cast until transactionLimits is shipped / peer dep
-                  await (this.ctx.runQuery as any)(
-                    target.function as FunctionReference<
-                      typeof target.functionType
-                    >,
-                    target.args,
-                    { transactionLimits: message.transactionLimits },
-                  )
-                : // cast until transactionLimits is shipped / peer dep
-                  await (this.ctx.runMutation as any)(
-                    target.function as FunctionReference<
-                      typeof target.functionType
-                    >,
-                    target.args,
-                    { transactionLimits: message.transactionLimits },
-                  );
-            runResult = { kind: "success", returnValue: result ?? null };
-          } catch (error: unknown) {
-            runResult = failedResult(error);
           }
         }
 
@@ -234,8 +250,16 @@ export class StepExecutor {
               ...commonFields,
             };
             break;
-          default:
+          case "inline":
+            step = {
+              kind: "inline" as const,
+              ...commonFields,
+            };
+            break;
+          default: {
+            const _: never = target;
             throw new Error(`Unknown step kind: ${(target as any).kind}`);
+          }
         }
         return {
           retry: message.retry,

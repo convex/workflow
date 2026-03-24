@@ -19,7 +19,7 @@ function fakeFuncRef(name: string) {
 function journalEntry(
   overrides: {
     name?: string;
-    kind?: "function" | "workflow" | "event";
+    kind?: "function" | "workflow" | "event" | "inline";
     args?: Record<string, unknown>;
     runResult?: RunResult;
     stepNumber?: number;
@@ -64,6 +64,15 @@ function journalEntry(
         args: overrides.args ?? { eventId: undefined },
       },
     } as JournalEntry;
+  }
+  if (kind === "inline") {
+    return {
+      ...base,
+      step: {
+        kind: "inline",
+        ...stepCommon,
+      },
+    } as unknown as JournalEntry;
   }
   return {
     ...base,
@@ -369,6 +378,104 @@ describe("StepExecutor + WorkflowCtx integration", () => {
     ]);
 
     expect(result).toEqual([1, 2, 3]);
+  });
+
+  it("ctx.run replays a successful inline handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-11" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      kind: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: 99 },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => 99),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe(99);
+  });
+
+  it("ctx.run replays a failed inline handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-12" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      kind: "inline",
+      args: {},
+      runResult: { kind: "failed", error: "inline boom" },
+    });
+
+    const [error] = await Promise.all([
+      ctx.run(async () => {
+        throw new Error("inline boom");
+      }).catch((e: Error) => e),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("inline boom");
+  });
+
+  it("ctx.run uses custom name when provided", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-13" as any, channel);
+
+    const entry = journalEntry({
+      name: "myCustomStep",
+      kind: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: "named" },
+    });
+
+    const handler = async () => {
+      return ctx.run(async () => "named", { name: "myCustomStep" });
+    };
+
+    const [result] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe("named");
+  });
+
+  it("ctx.run works sequentially with other steps", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-14" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        kind: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "inline-result" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "step2",
+        args: {},
+        runResult: { kind: "success", returnValue: "action-result" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      const a = await ctx.run(async () => "inline-result");
+      const b = await ctx.runAction(fakeFuncRef("step2") as any, {});
+      return [a, b];
+    };
+
+    const [results] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(results).toEqual(["inline-result", "action-result"]);
   });
 });
 
