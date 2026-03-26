@@ -167,9 +167,10 @@ export type WorkflowStatus =
 export function defineWorkflow<
   AV extends PropertyValidators,
   RV extends Validator<any, "required", any> | void = void,
+  DM extends GenericDataModel = GenericDataModel,
 >(
   component: WorkflowComponent,
-  config: WorkflowDefinition<AV, RV>,
+  config: WorkflowDefinition<AV, RV, DM>,
 ): {
   /**
    * Define the workflow handler function.
@@ -177,7 +178,7 @@ export function defineWorkflow<
    */
   handler(
     fn: (
-      step: WorkflowCtx,
+      step: WorkflowCtx<DM>,
       args: ObjectType<AV>,
     ) => Promise<ReturnValueForOptionalValidator<RV>>,
   ): RegisteredMutation<
@@ -562,7 +563,7 @@ export class WorkflowManager {
      */
     handler(
       fn: (
-        step: WorkflowCtx,
+        step: WorkflowCtx<DataModel>,
         args: ObjectType<ArgsValidator>,
       ) => Promise<ReturnValueForOptionalValidator<ReturnsValidator>>,
     ): RegisteredMutation<
@@ -574,16 +575,21 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
+    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-      handler?: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel> & {
+      handler?: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): unknown {
     if (workflow.handler) {
       return workflowMutation(
         this.component,
-        workflow as WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-          handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+        workflow as WorkflowDefinition<
+          ArgsValidator,
+          ReturnsValidator,
+          DataModel
+        > & {
+          handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
         },
         this.options?.workpoolOptions,
       );
@@ -592,13 +598,16 @@ export class WorkflowManager {
     // to support, in order to get the maxParallelism / etc. in there.
     // Direct users of defineWorkflow should instead configure those values
     // via configuring the component directly.
-    return defineWorkflow<ArgsValidator, ReturnsValidator>(this.component, {
-      ...workflow,
-      workpoolOptions: {
-        ...this.options?.workpoolOptions,
-        ...workflow.workpoolOptions,
+    return defineWorkflow<ArgsValidator, ReturnsValidator, DataModel>(
+      this.component,
+      {
+        ...workflow,
+        workpoolOptions: {
+          ...this.options?.workpoolOptions,
+          ...workflow.workpoolOptions,
+        },
       },
-    });
+    );
   }
 
   /**

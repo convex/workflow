@@ -167,7 +167,7 @@ export const startSteps = mutation({
         } else if (step.runResult) {
           // Already completed inline by the caller — nothing to enqueue.
           assert(
-            !step.kind || step.kind === "function" || step.kind === "inline",
+            !step.kind || step.kind === "function",
             `Unexpected inline-completed step kind: ${step.kind}`,
           );
           console.event("stepCompleted", {

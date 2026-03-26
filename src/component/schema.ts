@@ -66,10 +66,6 @@ export const step = v.union(
     workId: v.optional(vWorkIdValidator),
     ...stepCommonFields,
   }),
-  v.object({
-    kind: v.literal("inline"),
-    ...stepCommonFields,
-  }),
 );
 export type Step = Infer<typeof step>;
 

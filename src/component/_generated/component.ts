@@ -126,19 +126,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
-                }
-              | {
-                  args: any;
-                  argsSize: number;
-                  completedAt?: number;
-                  inProgress: boolean;
-                  kind: "inline";
-                  name: string;
-                  runResult?:
-                    | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
-                    | { kind: "canceled" };
-                  startedAt: number;
                 };
             stepNumber: number;
             workflowId: string;
@@ -233,19 +220,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
-                }
-              | {
-                  args: any;
-                  argsSize: number;
-                  completedAt?: number;
-                  inProgress: boolean;
-                  kind: "inline";
-                  name: string;
-                  runResult?:
-                    | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
-                    | { kind: "canceled" };
-                  startedAt: number;
                 };
           }>;
           workflowId: string;
@@ -440,19 +414,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
-                }
-              | {
-                  args: any;
-                  argsSize: number;
-                  completedAt?: number;
-                  inProgress: boolean;
-                  kind: "inline";
-                  name: string;
-                  runResult?:
-                    | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
-                    | { kind: "canceled" };
-                  startedAt: number;
                 };
             stepNumber: number;
             workflowId: string;
@@ -564,7 +525,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             args: any;
             completedAt?: number;
             eventId?: string;
-            kind: "function" | "workflow" | "event" | "sleep" | "inline";
+            kind: "function" | "workflow" | "event" | "sleep";
             name: string;
             nestedWorkflowId?: string;
             runResult?:

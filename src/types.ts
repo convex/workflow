@@ -59,7 +59,6 @@ export type WorkflowStep = {
   | { kind: "workflow"; nestedWorkflowId: WorkflowId }
   | { kind: "event"; eventId: EventId }
   | { kind: "sleep"; workId: WorkId }
-  | { kind: "inline" }
 );
 
 export const vWorkflowStep = v.object({
@@ -79,7 +78,6 @@ export const vWorkflowStep = v.object({
     v.literal("workflow"),
     v.literal("event"),
     v.literal("sleep"),
-    v.literal("inline"),
   ),
   workId: v.optional(vWorkIdValidator),
   nestedWorkflowId: v.optional(vWorkflowId),

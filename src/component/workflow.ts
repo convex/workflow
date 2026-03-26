@@ -180,11 +180,6 @@ function publicStep(step: JournalEntry): WorkflowStep {
         kind: "sleep",
         workId: step.step.workId!,
       };
-    case "inline":
-      return {
-        ...commonFields,
-        kind: "inline",
-      };
     default: {
       const _: never = step.step;
       throw new Error(`Unknown step kind: ${(step.step as any).kind}`);

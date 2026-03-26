@@ -30,7 +30,7 @@ import {
   type WorkflowComponent,
   type WorkflowMutationResult,
 } from "./types.js";
-import { createWorkflowCtx, type WorkflowCtx } from "./workflowContext.js";
+import { createWorkflowCtx } from "./workflowContext.js";
 
 export type WorkflowArgs<V extends PropertyValidators, Context = unknown> = {
   /**
@@ -112,7 +112,7 @@ export function workflowMutation<
 >(
   component: WorkflowComponent,
   registered: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel> & {
-    handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+    handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
   },
   defaultWorkpoolOptions?: WorkpoolOptions,
 ): RegisteredMutation<
@@ -236,10 +236,7 @@ export function workflowMutation<
       const channel = new BaseChannel<StepRequest>(
         workpoolOptions.maxParallelism ?? 10,
       );
-      const step = createWorkflowCtx(
-        workflowId,
-        channel,
-      ) as unknown as WorkflowCtx<DataModel>;
+      const step = createWorkflowCtx<DataModel>(workflowId, channel);
       const executor = new StepExecutor(
         workflowId,
         generationNumber,
