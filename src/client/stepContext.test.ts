@@ -476,6 +476,120 @@ describe("StepExecutor + WorkflowCtx integration", () => {
 
     expect(results).toEqual(["inline-result", "action-result"]);
   });
+
+  it("throws when calling step methods inside ctx.run()", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-15" as any, channel);
+
+    // Read the inline message from the channel, invoke its handler (which
+    // sets the lock), and resolve based on the handler outcome.
+    const executeInline = async () => {
+      const message = await channel.get();
+      if (message.target.kind !== "inline") throw new Error("expected inline");
+      try {
+        const result = await message.target.handler({} as any);
+        message.resolve({ kind: "success", returnValue: result });
+      } catch (e) {
+        message.resolve({
+          kind: "failed",
+          error: (e as Error).message,
+        });
+      }
+    };
+
+    const [error] = await Promise.all([
+      ctx
+        .run(async () => {
+          // This should throw — the guard fires before the channel push.
+          await ctx.runMutation(fakeFuncRef("bad") as any, {});
+        })
+        .catch((e: Error) => e),
+      executeInline(),
+    ]);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+  });
+
+  it("ctx.run() works normally after a previous ctx.run() completes", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-16" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "first" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "second" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      const a = await ctx.run(async () => "first");
+      const b = await ctx.run(async () => "second");
+      return [a, b];
+    };
+
+    const [results] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(results).toEqual(["first", "second"]);
+  });
+
+  it("resets the lock flag even when the inline handler throws", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-17" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "failed", error: "handler error" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "step2",
+        args: {},
+        runResult: { kind: "success", returnValue: "ok" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      try {
+        await ctx.run(async () => {
+          throw new Error("handler error");
+        });
+      } catch {
+        // expected
+      }
+      // This should work — the lock must have been released by try/finally.
+      return ctx.runAction(fakeFuncRef("step2") as any, {});
+    };
+
+    const [result] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(result).toBe("ok");
+  });
 });
 
 describe("unstableArgs", () => {

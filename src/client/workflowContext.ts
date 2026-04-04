@@ -235,39 +235,61 @@ export function createWorkflowCtx<
   sender: BaseChannel<StepRequest<DataModel>>,
   defaults?: StepDefaults,
 ): WorkflowCtx<DataModel> {
+  let locked = false;
+  const guardNotInlined = () => {
+    if (locked) {
+      throw new Error(
+        "Cannot call step methods inside a step.run() handler. " +
+          "Use the `ctx` argument passed to the handler instead, or " +
+          "move this call outside of step.run().",
+      );
+    }
+  };
+
   return {
     workflowId,
     withOptions: (opts) =>
       createWorkflowCtx(workflowId, sender, { ...defaults, ...opts }),
     runQuery: async (query, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "query", query, args, opts, defaults);
     },
 
     runMutation: async (mutation, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "mutation", mutation, args, opts, defaults);
     },
 
     runAction: async (action, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "action", action, args, opts, defaults);
     },
 
     run: async (handler, opts?) => {
+      guardNotInlined();
       return run(sender, {
         name: opts?.name ?? "run",
         target: {
           kind: "inline",
-          handler: handler as unknown as (
-            ctx: GenericMutationCtx<GenericDataModel>,
-          ) => Promise<unknown>,
+          handler: async (ctx: GenericMutationCtx<DataModel>) => {
+            locked = true;
+            try {
+              return await handler(ctx);
+            } finally {
+              locked = false;
+            }
+          },
           args: {} as Record<string, never>,
         },
         retry: undefined,
         inline: true,
         schedulerOptions: {},
+        unstableArgs: false,
       }) as any;
     },
 
     runWorkflow: async (workflow, args, opts?) => {
+      guardNotInlined();
       const { name, unstableArgs, ...schedulerOptions } = opts ?? {};
       return run(sender, {
         name: name ?? safeFunctionName(workflow),
@@ -285,6 +307,7 @@ export function createWorkflowCtx<
     },
 
     sleep: async (duration, opts?) => {
+      guardNotInlined();
       await run(sender, {
         name: opts?.name ?? "sleep",
         target: {
@@ -300,6 +323,7 @@ export function createWorkflowCtx<
     },
 
     awaitEvent: async (event) => {
+      guardNotInlined();
       const result = await run(sender, {
         name: event.name ?? event.id ?? "Event",
         target: {
