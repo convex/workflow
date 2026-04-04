@@ -590,6 +590,88 @@ describe("StepExecutor + WorkflowCtx integration", () => {
 
     expect(result).toBe("ok");
   });
+
+  it("parallel step.run() calls via Promise.all work correctly", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-18" as any, channel);
+
+    // Simulate the executor batching and running both inline handlers
+    // concurrently (as the real executor does via Promise.all).
+    const executeInlines = async () => {
+      const msg1 = await channel.get();
+      const msg2 = await channel.get();
+      // Run both handlers concurrently, just like the real executor.
+      await Promise.all(
+        [msg1, msg2].map(async (msg) => {
+          if (msg.target.kind !== "inline")
+            throw new Error("expected inline");
+          try {
+            const result = await msg.target.handler({} as any);
+            msg.resolve({ kind: "success", returnValue: result });
+          } catch (e) {
+            msg.resolve({ kind: "failed", error: (e as Error).message });
+          }
+        }),
+      );
+    };
+
+    const [results] = await Promise.all([
+      Promise.all([
+        ctx.run(async () => "a"),
+        ctx.run(async () => "b"),
+      ]),
+      executeInlines(),
+    ]);
+
+    expect(results).toEqual(["a", "b"]);
+  });
+
+  it("guard still fires inside each parallel step.run() handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-19" as any, channel);
+
+    const executeInlines = async () => {
+      const msg1 = await channel.get();
+      const msg2 = await channel.get();
+      await Promise.all(
+        [msg1, msg2].map(async (msg) => {
+          if (msg.target.kind !== "inline")
+            throw new Error("expected inline");
+          try {
+            const result = await msg.target.handler({} as any);
+            msg.resolve({ kind: "success", returnValue: result });
+          } catch (e) {
+            msg.resolve({ kind: "failed", error: (e as Error).message });
+          }
+        }),
+      );
+    };
+
+    const [errors] = await Promise.all([
+      Promise.all([
+        ctx
+          .run(async () => {
+            await ctx.runMutation(fakeFuncRef("bad1") as any, {});
+          })
+          .catch((e: Error) => e),
+        ctx
+          .run(async () => {
+            await ctx.runMutation(fakeFuncRef("bad2") as any, {});
+          })
+          .catch((e: Error) => e),
+      ]),
+      executeInlines(),
+    ]);
+
+    expect(errors[0]).toBeInstanceOf(Error);
+    expect((errors[0] as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+    expect(errors[1]).toBeInstanceOf(Error);
+    expect((errors[1] as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+  });
 });
 
 describe("unstableArgs", () => {

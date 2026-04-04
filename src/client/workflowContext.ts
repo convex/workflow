@@ -235,9 +235,9 @@ export function createWorkflowCtx<
   sender: BaseChannel<StepRequest<DataModel>>,
   defaults?: StepDefaults,
 ): WorkflowCtx<DataModel> {
-  let locked = false;
+  let inlineDepth = 0;
   const guardNotInlined = () => {
-    if (locked) {
+    if (inlineDepth > 0) {
       throw new Error(
         "Cannot call step methods inside a step.run() handler. " +
           "Use the `ctx` argument passed to the handler instead, or " +
@@ -272,11 +272,11 @@ export function createWorkflowCtx<
         target: {
           kind: "inline",
           handler: async (ctx: GenericMutationCtx<DataModel>) => {
-            locked = true;
+            inlineDepth++;
             try {
               return await handler(ctx);
             } finally {
-              locked = false;
+              inlineDepth--;
             }
           },
           args: {} as Record<string, never>,
