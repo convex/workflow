@@ -51,7 +51,7 @@ export type StepRequest<DM extends GenericDataModel = GenericDataModel> = {
     | {
         kind: "inline";
         handler: (ctx: GenericMutationCtx<DM>) => Promise<unknown>;
-        args: Record<string, never>;
+        args: Record<string, unknown>;
       };
   retry: RetryBehavior | boolean | undefined;
   inline: boolean;

@@ -173,11 +173,21 @@ export type WorkflowCtx<
      * ```
      *
      * @param handler - A function receiving the mutation context to run inline.
-     * @param opts - Options for naming the step.
+     * @param opts - Options for naming the step and declaring dependencies.
      */
     run<T>(
       handler: (ctx: GenericMutationCtx<DataModel>) => T | Promise<T>,
-      opts?: { name?: string },
+      opts?: {
+        name?: string;
+        /**
+         * Dependencies that are validated and journaled as part of this step.
+         * On replay, the saved deps are compared against the current deps —
+         * if they differ, the workflow detects a mismatch and re-executes.
+         * Use this to capture values from the enclosing scope that the handler
+         * depends on.
+         */
+        deps?: Record<string, unknown>;
+      },
     ): Promise<T>;
 
   /**
@@ -279,7 +289,7 @@ export function createWorkflowCtx<
               inlineDepth--;
             }
           },
-          args: {} as Record<string, never>,
+          args: opts?.deps ?? {},
         },
         retry: undefined,
         inline: true,

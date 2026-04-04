@@ -672,6 +672,70 @@ describe("StepExecutor + WorkflowCtx integration", () => {
       /Cannot call step methods inside a step\.run\(\) handler/,
     );
   });
+
+  it("ctx.run() journals deps and replays when they match", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-20" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: { userId: "u1", count: 3 },
+      runResult: { kind: "success", returnValue: "done" },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => "done", {
+        deps: { userId: "u1", count: 3 },
+      }),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe("done");
+  });
+
+  it("ctx.run() sends deps through the channel as args", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-21" as any, channel);
+
+    const deps = { userId: "u1", count: 3 };
+
+    // Read the message from the channel and verify the args match deps.
+    const inspectMessage = async () => {
+      const message = await channel.get();
+      expect(message.target.args).toEqual(deps);
+      expect(message.target.kind).toBe("inline");
+      message.resolve({ kind: "success", returnValue: "ok" });
+    };
+
+    const [result] = await Promise.all([
+      ctx.run(async () => "ok", { deps }),
+      inspectMessage(),
+    ]);
+
+    expect(result).toBe("ok");
+  });
+
+  it("ctx.run() without deps still journals empty args", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-22" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: 42 },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => 42),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe(42);
+  });
 });
 
 describe("unstableArgs", () => {
