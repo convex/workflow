@@ -143,42 +143,42 @@ export type WorkflowCtx<
     opts?: RunOptions,
   ): Promise<WorkflowReturnType<Workflow>>;
 
-  /**
-   * Run a handler inline within the workflow's mutation transaction.
-   * The result is journaled like any other step, so on replay it returns the
-   * saved value without re-executing the handler.
-   *
-   * This gives direct access to the underlying mutation context, allowing
-   * database reads/writes, running queries, and scheduling functions all
-   * within the same transaction as the workflow handler.
-   *
-   * The handler can read from variables in the enclosing scope, but should
-   * not modify them — on replay the handler is skipped and the journaled
-   * result is returned, so any side effects outside the handler's return
-   * value will not be replayed.
-   *
-   * To get a fully typed `ctx` with your data model, provide your app's
-   * `internalMutation` in the workflow definition:
-   *
-   * ```ts
-   * import { internalMutation } from "./_generated/server";
-   * workflow.define({
-   *   internalMutation,
-   *   handler: async (ctx, args) => {
-   *     const user = await ctx.run(async (ctx) => {
-   *       return ctx.db.query("users").first(); // fully typed
-   *     });
-   *   },
-   * });
-   * ```
-   *
-   * @param handler - A function receiving the mutation context to run inline.
-   * @param opts - Options for naming the step.
-   */
-  run<T>(
-    handler: (ctx: GenericMutationCtx<DataModel>) => T | Promise<T>,
-    opts?: { name?: string },
-  ): Promise<T>;
+    /**
+     * Run a handler inline within the workflow's mutation transaction.
+     * The result is journaled like any other step, so on replay it returns the
+     * saved value without re-executing the handler.
+     *
+     * This gives direct access to the underlying mutation context, allowing
+     * database reads/writes, running queries, and scheduling functions all
+     * within the same transaction as the workflow handler.
+     *
+     * The handler can read from variables in the enclosing scope, but should
+     * not modify them — on replay the handler is skipped and the journaled
+     * result is returned, so any side effects outside the handler's return
+     * value will not be replayed.
+     *
+     * To get a fully typed `ctx` with your data model, provide your app's
+     * `internalMutation` in the workflow definition:
+     *
+     * ```ts
+     * import { internalMutation } from "./_generated/server";
+     * workflow.define({
+     *   internalMutation,
+     *   handler: async (ctx, args) => {
+     *     const user = await ctx.run(async (ctx) => {
+     *       return ctx.db.query("users").first(); // fully typed
+     *     });
+     *   },
+     * });
+     * ```
+     *
+     * @param handler - A function receiving the mutation context to run inline.
+     * @param opts - Options for naming the step.
+     */
+    run<T>(
+      handler: (ctx: GenericMutationCtx<DataModel>) => T | Promise<T>,
+      opts?: { name?: string },
+    ): Promise<T>;
 
   /**
    * Blocks until a matching event is sent to this workflow.
