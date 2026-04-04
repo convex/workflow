@@ -232,7 +232,7 @@ export function createWorkflowCtx<
   DataModel extends GenericDataModel = GenericDataModel,
 >(
   workflowId: WorkflowId,
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<StepRequest<DataModel>>,
   defaults?: StepDefaults,
 ): WorkflowCtx<DataModel> {
   return {
@@ -324,8 +324,9 @@ async function runFunction<
   F extends
     | FunctionReference<FunctionType, FunctionVisibility>
     | FunctionReference_future<FunctionType, FunctionVisibility>,
+  DM extends GenericDataModel,
 >(
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<StepRequest<DM>>,
   functionType: FunctionType,
   f: F,
   args: Record<string, unknown> | undefined,
@@ -372,9 +373,9 @@ async function runFunction<
   });
 }
 
-async function run(
-  sender: BaseChannel<StepRequest>,
-  request: Omit<StepRequest, "resolve">,
+async function run<DM extends GenericDataModel>(
+  sender: BaseChannel<StepRequest<DM>>,
+  request: Omit<StepRequest<DM>, "resolve">,
 ): Promise<unknown> {
   let send: Promise<void>;
   const p = new Promise<RunResult>((resolve) => {

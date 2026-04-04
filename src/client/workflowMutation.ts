@@ -233,7 +233,7 @@ export function workflowMutation<
           `Assertion failed: not blocked but have in-progress journal entry`,
         );
       }
-      const channel = new BaseChannel<StepRequest>(
+      const channel = new BaseChannel<StepRequest<DataModel>>(
         workpoolOptions.maxParallelism ?? 10,
       );
       const step = createWorkflowCtx<DataModel>(workflowId, channel);
