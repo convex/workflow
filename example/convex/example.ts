@@ -10,14 +10,15 @@ import { internalAction, internalMutation } from "./_generated/server.js";
 import { components } from "./_generated/api.js";
 import { vResultValidator } from "@convex-dev/workpool";
 
-export const workflow = new WorkflowManager(components.workflow);
+export const workflow = new WorkflowManager(components.workflow, {
+  internalMutation,
+});
 
 export const myWorkflow = workflow
   .define({
     args: {
       location: v.string(),
     },
-    internalMutation,
     workpoolOptions: {
       retryActionsByDefault: true,
     },

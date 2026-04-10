@@ -100,36 +100,16 @@ export type CallbackOptions<Context = unknown> =
 export type WorkflowDefinition<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void = any,
-  DataModel extends GenericDataModel = GenericDataModel,
 > = {
   args?: ArgsValidator;
   returns?: ReturnsValidator;
   workpoolOptions?: WorkpoolRetryOptions;
-  /**
-   * Provide your app's `internalMutation` (from `_generated/server`) to get
-   * a fully typed `ctx` in `ctx.run()` handlers, with your data model's
-   * tables available on `ctx.db`. This also lets any custom middleware
-   * you've configured run around the workflow.
-   *
-   * ```ts
-   * import { internalMutation } from "./_generated/server";
-   * workflow.define({
-   *   internalMutation,
-   *   handler: async (ctx, args) => {
-   *     const user = await ctx.run(async (ctx) => {
-   *       return ctx.db.query("users").first(); // fully typed
-   *     });
-   *   },
-   * });
-   * ```
-   */
-  internalMutation?: MutationBuilder<DataModel, "internal">;
 };
 
 export type WorkflowHandler<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void,
-  DataModel extends GenericDataModel,
+  DataModel extends GenericDataModel = GenericDataModel,
 > = (
   step: WorkflowCtx<DataModel>,
   args: ObjectType<ArgsValidator>,
@@ -170,7 +150,9 @@ export function defineWorkflow<
   DM extends GenericDataModel = GenericDataModel,
 >(
   component: WorkflowComponent,
-  config: WorkflowDefinition<AV, RV, DM>,
+  config: WorkflowDefinition<AV, RV> & {
+    internalMutation?: MutationBuilder<DM, "internal">;
+  },
 ): {
   /**
    * Define the workflow handler function.
@@ -518,11 +500,27 @@ export async function cleanup(
   });
 }
 
-export class WorkflowManager {
+export class WorkflowManager<
+  DataModel extends GenericDataModel = GenericDataModel,
+> {
   constructor(
     public component: WorkflowComponent,
     public options?: {
-      workpoolOptions: WorkpoolOptions;
+      workpoolOptions?: WorkpoolOptions;
+      /**
+       * Provide your app's `internalMutation` (from `_generated/server`) to get
+       * a fully typed `ctx` in `step.run()` handlers, with your data model's
+       * tables available on `ctx.db`. This also lets any custom middleware
+       * you've configured run around the workflow.
+       *
+       * ```ts
+       * import { internalMutation } from "./_generated/server";
+       * const workflow = new WorkflowManager(components.workflow, {
+       *   internalMutation,
+       * });
+       * ```
+       */
+      internalMutation?: MutationBuilder<DataModel, "internal">;
     },
   ) {}
 
@@ -540,9 +538,8 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
-    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel> & {
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
       handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): RegisteredMutation<
@@ -553,9 +550,8 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
-    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel>,
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator>,
   ): {
     /**
      * Define the workflow handler function.
@@ -575,21 +571,21 @@ export class WorkflowManager {
   define<
     ArgsValidator extends PropertyValidators,
     ReturnsValidator extends Validator<unknown, "required", string> | void,
-    DataModel extends GenericDataModel = GenericDataModel,
   >(
-    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator, DataModel> & {
+    workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
       handler?: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): unknown {
+    const withMutation = {
+      ...workflow,
+      internalMutation: this.options?.internalMutation,
+    };
     if (workflow.handler) {
       return workflowMutation(
         this.component,
-        workflow as WorkflowDefinition<
-          ArgsValidator,
-          ReturnsValidator,
-          DataModel
-        > & {
+        withMutation as WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
           handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
+          internalMutation?: MutationBuilder<DataModel, "internal">;
         },
         this.options?.workpoolOptions,
       );
@@ -601,7 +597,7 @@ export class WorkflowManager {
     return defineWorkflow<ArgsValidator, ReturnsValidator, DataModel>(
       this.component,
       {
-        ...workflow,
+        ...withMutation,
         workpoolOptions: {
           ...this.options?.workpoolOptions,
           ...workflow.workpoolOptions,

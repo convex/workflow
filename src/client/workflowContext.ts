@@ -158,17 +158,12 @@ export type WorkflowCtx<
      * value will not be replayed.
      *
      * To get a fully typed `ctx` with your data model, provide your app's
-     * `internalMutation` in the workflow definition:
+     * `internalMutation` when creating the `WorkflowManager`:
      *
      * ```ts
      * import { internalMutation } from "./_generated/server";
-     * workflow.define({
+     * const workflow = new WorkflowManager(components.workflow, {
      *   internalMutation,
-     *   handler: async (ctx, args) => {
-     *     const user = await ctx.run(async (ctx) => {
-     *       return ctx.db.query("users").first(); // fully typed
-     *     });
-     *   },
      * });
      * ```
      *

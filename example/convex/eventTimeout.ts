@@ -10,7 +10,9 @@ import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 
-const workflow = new WorkflowManager(components.workflow);
+const workflow = new WorkflowManager(components.workflow, {
+  internalMutation,
+});
 
 const approvalEvent = defineEvent({
   name: "approval",
@@ -31,7 +33,6 @@ const approvalEvent = defineEvent({
 export const eventTimeoutWorkflow = workflow.define({
   args: {},
   returns: v.string(),
-  internalMutation,
   handler: async (step): Promise<string> => {
     // 1. Create the event so we have an ID to pass to the timeout function.
     const eventId = await step.runMutation(
