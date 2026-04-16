@@ -180,6 +180,8 @@ export type WorkflowCtx<
          * if they differ, the workflow detects a mismatch and re-executes.
          * Use this to capture values from the enclosing scope that the handler
          * depends on.
+         * If you pass {}, it will not check for dependency mismatches, akin to
+         * unstableArgs in step.run*
          */
         deps?: Record<string, unknown>;
       },
@@ -272,6 +274,10 @@ export function createWorkflowCtx<
 
     run: async (handler, opts?) => {
       guardNotInlined();
+      // allow {} to behave like unstableArgs
+      const unstableArgs =
+        typeof opts?.deps === "object" && Object.keys(opts.deps).length === 0;
+
       return run(sender, {
         name: opts?.name ?? "run",
         target: {
@@ -289,7 +295,7 @@ export function createWorkflowCtx<
         retry: undefined,
         inline: true,
         schedulerOptions: {},
-        unstableArgs: false,
+        unstableArgs,
       }) as any;
     },
 
