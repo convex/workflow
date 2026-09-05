@@ -124,3 +124,16 @@ test("the return type survives statically generated function types", () => {
     Awaited<ReturnType<typeof _ctx.runWorkflow<CodegenRef<null>>>>
   >().toEqualTypeOf<null>();
 });
+
+test("withOptions preserves the callback data model and normalized returns", () => {
+  type DataModel = import("../component/_generated/dataModel.js").DataModel;
+  type TypedStep = WorkflowCtx<DataModel>;
+  expectTypeOf<
+    ReturnType<TypedStep["withOptions"]>
+  >().toEqualTypeOf<TypedStep>();
+  const _run = null! as TypedStep["run"];
+  expectTypeOf<Awaited<ReturnType<typeof _run<void>>>>().toEqualTypeOf<null>();
+  expectTypeOf<
+    Awaited<ReturnType<typeof _run<string | undefined>>>
+  >().toEqualTypeOf<string | null>();
+});

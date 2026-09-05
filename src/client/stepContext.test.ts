@@ -603,8 +603,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
       // Run both handlers concurrently, just like the real executor.
       await Promise.all(
         [msg1, msg2].map(async (msg) => {
-          if (msg.target.kind !== "inline")
-            throw new Error("expected inline");
+          if (msg.target.kind !== "inline") throw new Error("expected inline");
           try {
             const result = await msg.target.handler({} as any);
             msg.resolve({ kind: "success", returnValue: result });
@@ -616,10 +615,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
     };
 
     const [results] = await Promise.all([
-      Promise.all([
-        ctx.run(async () => "a"),
-        ctx.run(async () => "b"),
-      ]),
+      Promise.all([ctx.run(async () => "a"), ctx.run(async () => "b")]),
       executeInlines(),
     ]);
 
@@ -635,8 +631,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
       const msg2 = await channel.get();
       await Promise.all(
         [msg1, msg2].map(async (msg) => {
-          if (msg.target.kind !== "inline")
-            throw new Error("expected inline");
+          if (msg.target.kind !== "inline") throw new Error("expected inline");
           try {
             const result = await msg.target.handler({} as any);
             msg.resolve({ kind: "success", returnValue: result });
@@ -1088,5 +1083,62 @@ describe("transactionLimits", () => {
         { inline: true, runAfter: 1000 },
       ),
     ).rejects.toThrow("Cannot combine `inline` with `runAt` or `runAfter`.");
+  });
+});
+
+describe("inline callbacks with derived contexts", () => {
+  test.each(["original", "derived", "new"] as const)(
+    "guards nested steps through a %s context",
+    async (context) => {
+      const channel = new BaseChannel<StepRequest>(1);
+      const step = createWorkflowCtx("wf-test" as WorkflowId, channel);
+      const derived = step.withOptions({});
+      const nested = () =>
+        context === "original"
+          ? step
+          : context === "derived"
+            ? derived
+            : step.withOptions({});
+      const result = derived.run(() => nested().sleep(1));
+      const message = await channel.get();
+      expect(message.target.kind).toBe("inline");
+      if (message.target.kind !== "inline") throw new Error("expected inline");
+      await expect(message.target.handler({} as any)).rejects.toThrow(
+        "Cannot call step methods inside a step.run() handler",
+      );
+      message.resolve({ kind: "success", returnValue: null });
+      await result;
+      const after = step.run(() => "ok");
+      const next = await channel.get();
+      next.resolve({ kind: "success", returnValue: "ok" });
+      expect(await after).toBe("ok");
+    },
+  );
+
+  test("inherits unstableArgs, with explicit deps restoring validation", async () => {
+    const channel = new BaseChannel<StepRequest>(3);
+    const step = createWorkflowCtx(
+      "wf-test" as WorkflowId,
+      channel,
+    ).withOptions({ unstableArgs: true });
+    const results = [
+      step.run(() => 1),
+      step.run(() => 2, { deps: { count: 2 } }),
+      step.run(() => 3, { deps: {} }),
+    ];
+    const messages = [
+      await channel.get(),
+      await channel.get(),
+      await channel.get(),
+    ];
+    expect(messages.map((message) => message.unstableArgs)).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    for (const message of messages) {
+      message.resolve({ kind: "success", returnValue: null });
+    }
+    await Promise.all(results);
   });
 });

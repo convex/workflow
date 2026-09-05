@@ -510,8 +510,10 @@ export class WorkflowManager<
       /**
        * Provide your app's `internalMutation` (from `_generated/server`) to get
        * a fully typed `ctx` in `step.run()` handlers, with your data model's
-       * tables available on `ctx.db`. This also lets any custom middleware
-       * you've configured run around the workflow.
+       * tables available on `ctx.db`. Compatible context wrappers (such as
+       * triggers.wrapDB) run once per workflow poll, including replays. Custom
+       * builders that require additional arguments are not supported; injected
+       * context fields beyond GenericMutationCtx are not exposed by this type.
        *
        * ```ts
        * import { internalMutation } from "./_generated/server";

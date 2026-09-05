@@ -1,4 +1,8 @@
-type GenerationState = { now: number; latest: boolean };
+type GenerationState = {
+  now: number;
+  latest: boolean;
+  inlineRandom?: () => number;
+};
 
 // Simple hash function to convert a string to a 32-bit seed
 function hashString(str: string): number {
@@ -104,7 +108,12 @@ export function setupEnvironment(
   const readonlyProperties = new Map<string, PropertyDescriptor>();
 
   // Patch Math with seeded random based on workflowId
-  global.Math = patchMath(originals.Math as typeof Math, workflowId);
+  const math = patchMath(originals.Math as typeof Math, workflowId);
+  const workflowRandom = math.random;
+  // Inline callbacks are skipped on replay, so their random calls must not
+  // advance the workflow handler's deterministic random sequence.
+  math.random = () => (getGenerationState().inlineRandom ?? workflowRandom)();
+  global.Math = math;
 
   // Patch Date
   global.Date = createDeterministicDate(

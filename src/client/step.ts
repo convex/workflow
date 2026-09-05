@@ -20,6 +20,7 @@ import type {
 import { MAX_JOURNAL_SIZE, failedResult } from "../shared.js";
 import type { EventId, SchedulerOptions } from "../types.js";
 import { pick } from "convex-helpers";
+import { patchMath } from "./environment.js";
 
 export type WorkerResult =
   { type: "handlerDone"; runResult: RunResult } | { type: "executorBlocked" };
@@ -64,6 +65,8 @@ export type StepRequest<DM extends GenericDataModel = GenericDataModel> = {
 
 export class StepExecutor<DataModel extends GenericDataModel> {
   private journalEntrySize: number;
+  private nextStepNumber: number;
+  private inlineRandom: (() => number) | undefined;
 
   constructor(
     private workflowId: string,
@@ -75,6 +78,10 @@ export class StepExecutor<DataModel extends GenericDataModel> {
     private now: number,
     private workpoolOptions: WorkpoolOptions | undefined,
   ) {
+    this.nextStepNumber = journalEntries.reduce(
+      (next, entry) => Math.max(next, entry.stepNumber + 1),
+      0,
+    );
     this.journalEntrySize = journalEntries.reduce(
       (size, entry) => size + getConvexSize(entry),
       0,
@@ -117,7 +124,7 @@ export class StepExecutor<DataModel extends GenericDataModel> {
 
   getGenerationState() {
     if (this.journalEntries.length <= this.receiver.bufferSize) {
-      return { now: this.now, latest: true };
+      return { now: this.now, latest: true, inlineRandom: this.inlineRandom };
     }
     return {
       // We use the next entry's startedAt, since we're in code just before that
@@ -168,7 +175,18 @@ export class StepExecutor<DataModel extends GenericDataModel> {
   async startSteps(
     messages: StepRequest<DataModel>[],
   ): Promise<JournalEntry[]> {
-    const steps = await Promise.all(
+    const firstStepNumber = this.nextStepNumber;
+    this.nextStepNumber += messages.length;
+    // A batch shares one transaction and resolves only after every callback
+    // finishes. Give it a separate stream, seeded by its journal position so
+    // later polls do not reuse randomness from earlier callbacks.
+    if (messages.some((message) => message.target.kind === "inline")) {
+      this.inlineRandom = patchMath(
+        Math,
+        `${this.workflowId}:inline:${firstStepNumber}`,
+      ).random;
+    }
+    const results = await Promise.allSettled(
       messages.map(async (message) => {
         const args = message.target.args ?? {};
         const target = message.target;
@@ -274,6 +292,13 @@ export class StepExecutor<DataModel extends GenericDataModel> {
         };
       }),
     );
+    // Drain the entire batch before restoring the environment, including when
+    // another step fails to serialize or create a function handle.
+    this.inlineRandom = undefined;
+    const steps = results.map((result) => {
+      if (result.status === "rejected") throw result.reason;
+      return result.value;
+    });
     const entries = (await this.ctx.runMutation(
       this.component.journal.startSteps,
       {

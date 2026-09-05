@@ -50,7 +50,7 @@ export const eventTimeoutWorkflow = workflow.define({
           { eventId },
         );
       },
-      { name: "scheduleTimeout" },
+      { name: "scheduleTimeout", deps: { eventId } },
     );
 
     // 3. Wait for the event — either a real approval or the timeout.
@@ -60,11 +60,14 @@ export const eventTimeoutWorkflow = workflow.define({
     if (result.kind === "approved") {
       await step.run(
         async (ctx) => {
-          const scheduled = await ctx.db.system.get(scheduledFnId);
+          const scheduled = await ctx.db.system.get(
+            "_scheduled_functions",
+            scheduledFnId,
+          );
           if (scheduled?.state.kind === "pending")
             await ctx.scheduler.cancel(scheduledFnId);
         },
-        { name: "cancelTimeout" },
+        { name: "cancelTimeout", deps: { scheduledFnId } },
       );
       return "approved";
     }
