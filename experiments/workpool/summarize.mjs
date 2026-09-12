@@ -5,6 +5,29 @@ import assert from "node:assert/strict";
 const input = process.argv[2] ?? "experiments/workpool/results.json";
 const results = JSON.parse(readFileSync(input, "utf8"));
 const samples = results.samples;
+// Interrupted runs still save their completed samples. Do not mistake such an
+// artifact for a complete experiment when reporting its medians.
+for (const workload of results.workloads) {
+  for (const parallelism of results.parallelisms) {
+    for (const mode of results.modes) {
+      if (workload === "pool" && mode === "allMutations") continue;
+      const rounds = samples
+        .filter(
+          (s) =>
+            s.workload === workload &&
+            s.maxParallelism === parallelism &&
+            s.mode === mode,
+        )
+        .map((s) => s.round)
+        .sort((a, b) => a - b);
+      assert.deepEqual(
+        rounds,
+        Array.from({ length: results.repeats + 1 }, (_, i) => i - 1),
+        `Incomplete trials: ${workload}/${parallelism}/${mode}`,
+      );
+    }
+  }
+}
 for (const sample of samples)
   sample.executions = {
     scheduledCommits: 0,
@@ -17,6 +40,7 @@ for (const sample of samples)
     databaseWriteBytes: 0,
     lastWorkCommitAt: 0,
     byFunction: {},
+    timingsByFunction: {},
   };
 const lines = createInterface({
   input: createReadStream(input.replace(/\.json$/, "") + ".logs.jsonl"),
@@ -60,6 +84,12 @@ for await (const line of lines) {
   x.databaseWriteBytes += entry.usageStats?.databaseWriteBytes ?? 0;
   const name = `${entry.componentPath ?? "app"}/${entry.identifier}`;
   x.byFunction[name] = (x.byFunction[name] ?? 0) + 1;
+  const timing = (x.timingsByFunction[name] ??= {
+    executionMs: 0,
+    userExecutionMs: 0,
+  });
+  timing.executionMs += (entry.executionTime ?? 0) * 1000;
+  timing.userExecutionMs += (entry.userExecutionTime ?? 0) * 1000;
   if (entry.identifier === "worker:runMutationWrapper") x.wrappers++;
   if (entry.identifier === "complete:complete") x.separateCompletions++;
   if (
@@ -158,6 +188,37 @@ results.summary = Array.from(groups, ([key, xs]) => ({
   medianScheduledCommits: median(xs.map((s) => s.executions.scheduledCommits)),
   medianRetries: median(xs.map((s) => s.executions.retries)),
 }));
+results.comparisons = [];
+for (const workload of results.workloads) {
+  for (const parallelism of results.parallelisms) {
+    for (const [control, treatment] of [
+      ["baseline", "filtered"],
+      ["prFiltered", "transactional"],
+      ["filtered", "transactional"],
+      ["transactional", "allMutations"],
+    ]) {
+      const a = results.summary.find(
+        (s) => s.key === `${workload}/${parallelism}/${control}`,
+      );
+      const b = results.summary.find(
+        (s) => s.key === `${workload}/${parallelism}/${treatment}`,
+      );
+      if (!a || !b) continue;
+      results.comparisons.push({
+        workload,
+        parallelism,
+        control,
+        treatment,
+        committedThroughputChangePct:
+          100 * (b.medianCommittedThroughput / a.medianCommittedThroughput - 1),
+        endToEndThroughputChangePct:
+          100 * (b.medianEndToEndThroughput / a.medianEndToEndThroughput - 1),
+        scheduledExecutionsChangePct:
+          100 * (b.medianScheduledCommits / a.medianScheduledCommits - 1),
+      });
+    }
+  }
+}
 writeFileSync(input, JSON.stringify(results, null, 2) + "\n");
 console.table(
   results.summary.map((s) => ({

@@ -1,5 +1,6 @@
-> Historical run: released 0.4.7 vs. PR `14eabf7`, using the former API and modes.
-> See [the current results](../RESULTS.md) for the 0.4.12 exclusion comparison.
+> Historical run: released 0.4.7 vs. PR `14eabf7`, using the former API and
+> modes. See [the current results](../RESULTS.md) for the 0.4.12 exclusion
+> comparison.
 
 # Workpool PR #238: measured results
 
@@ -167,8 +168,8 @@ TypeScript checks passed. Lint passed with three existing `.filter()` warnings.
 The isolated app was deployed successfully and can be regenerated from the
 source checkout.
 
-See [README.md](README.md) for setup and method details. The exact measured run
-was:
+See [the current README](../README.md) for the updated harness. The exact
+historical run, before the API and mode changes, was:
 
 ```sh
 npm run bench:workpool -- --repeats=3 --parallelism=25,100 --jobs=500 --flows=100 --steps=5 --output=experiments/workpool/results.json

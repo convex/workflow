@@ -6,18 +6,19 @@ This is an isolated Convex app for benchmarking this checkout's actual workflow
 implementation against workpool
 [PR #238](https://github.com/get-convex/workpool/pull/238). The library and
 example app continue using the released `@convex-dev/workpool` dependency. The
-experimental package is installed as `@convex-dev/workpool-transactional`, pinned
-to the measured PR commit `bec8e66`. The lockfile records its tarball integrity.
+experimental package is installed as `@convex-dev/workpool-transactional`,
+pinned to the measured PR commit `bec8e66`. The lockfile records its tarball
+integrity.
 
 ## Variants
 
-| Mode | Workpool | Handler success callback | Transactional completion |
-| --- | --- | --- | --- |
-| `baseline` | Released 0.4.12 | Called, then ignored | Off |
-| `filtered` | Released 0.4.12 | Excluded | Off |
-| `prFiltered` | PR #238 at `bec8e66` | Excluded | Off |
-| `transactional` | PR #238 at `bec8e66` | Excluded | Workflow handlers |
-| `allMutations` | PR #238 at `bec8e66` | Excluded | Workflow handlers and mutation steps |
+| Mode            | Workpool             | Handler success callback | Transactional completion             |
+| --------------- | -------------------- | ------------------------ | ------------------------------------ |
+| `baseline`      | Released 0.4.12      | Called, then ignored     | Off                                  |
+| `filtered`      | Released 0.4.12      | Excluded                 | Off                                  |
+| `prFiltered`    | PR #238 at `bec8e66` | Excluded                 | Off                                  |
+| `transactional` | PR #238 at `bec8e66` | Excluded                 | Workflow handlers                    |
+| `allMutations`  | PR #238 at `bec8e66` | Excluded                 | Workflow handlers and mutation steps |
 
 Compare `baseline` with `filtered` to isolate success callback exclusion on the
 same released package. Compare `prFiltered` with `transactional` to isolate
@@ -26,14 +27,15 @@ transactional handler completion within the PR package. `filtered` vs.
 transactions. The PR tarball still declares version 0.4.11; its commit and
 integrity identify the actual code. Both packages use batch-worker 0.2.2.
 
-The base PR already sets `onCompleteExcludeKinds: ["success"]` for async workflow
-start, async restart, and handler resume, where success is already ignored.
-`prepare.mjs` copies `src/` into ignored `generated/` directories and:
+The base PR already sets `onCompleteExcludeKinds: ["success"]` for async
+workflow start, async restart, and handler resume, where success is already
+ignored. `prepare.mjs` copies `src/` into ignored `generated/` directories and:
 
 - Removes those three exclusion options only for `baseline`.
 - Keeps `filtered` on the released package with no source changes.
 - Switches the workpool component and client imports for the three PR variants.
-- Adds `completeTransactionally: true` at those sites for the transactional variants.
+- Adds `completeTransactionally: true` at those sites for the transactional
+  variants.
 - Also enables transactional completion in the journal's `enqueueMutation` case
   for `allMutations`, preserving its success callback and result.
 
@@ -92,11 +94,15 @@ Every trial waits for its workpool to empty and become idle before the next one.
 - The runner checks exact completion counts, unique item indices, final workflow
   status/result, and missing or duplicate step writes. Before timing, it tests
   actual scheduled failure, cancellation, and mutation-write rollback.
-- The summarizer verifies the expected wrapper and separate completion counts
-  against logs, fails on runtime errors, and reports successful scheduled
-  executions and OCC retry attempts. Scheduled execution counts include workpool
-  loop overhead; they exclude the benchmark driver's actions/queries. They are
-  not a count of all nested UDF calls or a billing estimate.
+- The summarizer rejects incomplete trial matrices, verifies the expected
+  wrapper and separate completion counts against logs, fails on runtime errors,
+  and reports scheduled executions, per-function execution time, and OCC
+  retries. Scheduled execution counts include workpool loop overhead; they
+  exclude the benchmark driver's actions/queries. They are not a count of all
+  nested UDF calls or a billing estimate.
+
+Percentage comparisons are ratios of the medians. The ranges across three trials
+are descriptive, not confidence intervals.
 
 These are finite-batch, cheap-write synthetic workloads on a development
 deployment. They measure scheduling overhead under this load, not production
