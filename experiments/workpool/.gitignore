@@ -1,0 +1,5 @@
+generated/
+convex/_generated/
+.env.local
+results.local.json
+*.jsonl
