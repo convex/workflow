@@ -70,22 +70,26 @@ selects a subset. `--output=path.json` selects the result artifact. Matching
 
 ## Measurement and validation
 
-Trials run sequentially on the same deployment. Each mode and parallelism gets a
-10-item warm-up before three measured rounds: 10 direct jobs, or 10 workflows
-with the configured number of steps. Round order rotates and reverses to reduce
-ordering bias. Every trial waits for its workpool to empty and become idle, then
-waits for the expected success callback commits in the execution-log stream
-before recording `drainedAt` and starting the next trial. This includes
-callbacks in the app, which can outlive the pool's work records. The callbacks
-remain no-ops; the wait adds no marker writes to the measured workload.
+Trials run sequentially on the same deployment. Each selected workload, mode,
+and parallelism combination gets a 10-item warm-up before `--repeats` measured
+rounds (default: three). The direct-pool workload skips `allMutations` entirely,
+since it is identical to `transactional` for direct jobs. Warm-ups use 10 direct
+jobs or 10 workflows with the configured number of steps. Round order rotates
+and reverses to reduce ordering bias. Every trial waits for its workpool to
+empty and become idle, then waits for the expected success callback commits in
+the execution-log stream before recording `drainedAt` and starting the next
+trial. This includes callbacks in the app, which can outlive the pool's work
+records. The callbacks remain no-ops; the wait adds no marker writes to the
+measured workload.
 
 - Direct pool jobs use a single batch enqueue, each writing an independent
   completion row. The success callback returns immediately when called.
-- Measured workflow trials asynchronously start 100 independent workflows, each
-  awaiting five mutation steps in sequence. Every step inserts an independent
-  row and returns a number used in the workflow's final sum. No shared counters
-  create artificial contention. The `inline` workload runs those steps inline;
-  `action` wraps the same write in an action.
+- By default, measured workflow trials asynchronously start 100 independent
+  workflows, each awaiting five mutation steps in sequence (`--flows` and
+  `--steps` override these counts). Every step inserts an independent row and
+  returns a number used in the workflow's final sum. No shared counters create
+  artificial contention. The `inline` workload runs those steps inline; `action`
+  wraps the same write in an action.
 - `admissionMs` measures the enqueue/start call separately. `executionMs` runs
   from that call returning in the server action to the final completion-row
   timestamp. `elapsedMs` includes admission from the successful start mutation's
@@ -112,8 +116,8 @@ remain no-ops; the wait adds no marker writes to the measured workload.
   actions/queries. They are not a count of all nested UDF calls or a billing
   estimate.
 
-Percentage comparisons are ratios of the medians. The ranges across three trials
-are descriptive, not confidence intervals.
+Percentage comparisons are ratios of the medians. The ranges across measured
+rounds are descriptive, not confidence intervals.
 
 These are finite-batch, cheap-write synthetic workloads on a development
 deployment. They measure scheduling overhead under this load, not production
