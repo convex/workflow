@@ -62,25 +62,30 @@ all generated source. Its local `node_modules` symlink reuses root dependencies.
 `convex.mjs` preserves the root Node executable when changing directories.
 Tokens and generated code are gitignored.
 
-Runner options use `--name=value` syntax.
-`--workloads=pool,mutation,action,inline` selects workloads; the default is
-`pool,mutation`. `--modes=baseline,transactional` selects a subset.
-`--output=path.json` selects the result artifact. Matching `path.logs.jsonl`
-contains the raw Convex execution stream.
+Runner options use `--name=value` syntax. `--repeats` must be a positive safe
+integer (default: 3). `--workloads=pool,mutation,action,inline` selects
+workloads; the default is `pool,mutation`. `--modes=baseline,transactional`
+selects a subset. `--output=path.json` selects the result artifact. Matching
+`path.logs.jsonl` contains the raw Convex execution stream.
 
 ## Measurement and validation
 
-Trials run sequentially on the same deployment. Each mode gets a warm-up before
-three measured rounds. Round order rotates and reverses to reduce ordering bias.
-Every trial waits for its workpool to empty and become idle before the next one.
+Trials run sequentially on the same deployment. Each mode and parallelism gets a
+10-item warm-up before three measured rounds: 10 direct jobs, or 10 workflows
+with the configured number of steps. Round order rotates and reverses to reduce
+ordering bias. Every trial waits for its workpool to empty and become idle, then
+waits for the expected success callback commits in the execution-log stream
+before recording `drainedAt` and starting the next trial. This includes
+callbacks in the app, which can outlive the pool's work records. The callbacks
+remain no-ops; the wait adds no marker writes to the measured workload.
 
 - Direct pool jobs use a single batch enqueue, each writing an independent
   completion row. The success callback returns immediately when called.
-- Workflow trials asynchronously start 100 independent workflows, each awaiting
-  five mutation steps in sequence. Every step inserts an independent row and
-  returns a number used in the workflow's final sum. No shared counters create
-  artificial contention. The `inline` workload runs those steps inline; `action`
-  wraps the same write in an action.
+- Measured workflow trials asynchronously start 100 independent workflows, each
+  awaiting five mutation steps in sequence. Every step inserts an independent
+  row and returns a number used in the workflow's final sum. No shared counters
+  create artificial contention. The `inline` workload runs those steps inline;
+  `action` wraps the same write in an action.
 - `admissionMs` measures the enqueue/start call separately. `executionMs` runs
   from that call returning in the server action to the final completion-row
   timestamp. `elapsedMs` includes admission from the successful start mutation's
@@ -93,13 +98,19 @@ Every trial waits for its workpool to empty and become idle before the next one.
   completion tail that completion-row timestamps alone can miss.
 - The runner checks exact completion counts, unique item indices, final workflow
   status/result, and missing or duplicate step writes. Before timing, it tests
-  actual scheduled failure, cancellation, and mutation-write rollback.
+  direct-pool failure, cancellation, and mutation-write rollback for the
+  selected `baseline`, `filtered`, `prFiltered`, and `transactional` modes.
+  These are direct-job preflights, not workflow-step failure tests.
+  `allMutations` has no separate preflight; its successful workflow results and
+  step writes are checked, but transactional step-callback failure and rollback
+  are not covered.
 - The summarizer rejects incomplete trial matrices, verifies the expected
-  wrapper and separate completion counts against logs, fails on runtime errors,
-  and reports scheduled executions, per-function execution time, and OCC
-  retries. Scheduled execution counts include workpool loop overhead; they
-  exclude the benchmark driver's actions/queries. They are not a count of all
-  nested UDF calls or a billing estimate.
+  wrapper and separate completion counts against logs, fails on malformed JSONL
+  records (including truncated lines) and runtime errors, and reports scheduled
+  executions, per-function execution time, and OCC retries. Scheduled execution
+  counts include workpool loop overhead; they exclude the benchmark driver's
+  actions/queries. They are not a count of all nested UDF calls or a billing
+  estimate.
 
 Percentage comparisons are ratios of the medians. The ranges across three trials
 are descriptive, not confidence intervals.

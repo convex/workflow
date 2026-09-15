@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, createWriteStream } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { CallbackLog } from "./logs.mjs";
 
 const cwd = fileURLToPath(new URL("./", import.meta.url));
 const cliPath = path.join(cwd, "../../node_modules/convex/bin/main.js");
@@ -11,6 +12,10 @@ const flags = Object.fromEntries(
   process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")),
 );
 const repeats = Number(flags.repeats ?? 3);
+assert(
+  Number.isSafeInteger(repeats) && repeats > 0,
+  "--repeats must be a positive safe integer",
+);
 const parallelisms = (flags.parallelism ?? "25,100").split(",").map(Number);
 const workloads = (flags.workloads ?? "pool,mutation").split(",");
 const modes = (
@@ -70,6 +75,8 @@ const logs = spawn(process.execPath, [cliPath, "logs", "--jsonl"], {
   cwd,
   stdio: ["ignore", "pipe", "pipe"],
 });
+const logsClosed = new Promise((resolve) => logs.once("close", resolve));
+const callbacks = new CallbackLog(logs.stdout, logsPath);
 logs.stdout.pipe(logsFile);
 logs.stderr.on("data", (data) => {
   // The CLI can print stream connection information on stderr.
@@ -154,6 +161,7 @@ try {
                 : "poolPr"
               : `${mode}/workpool`,
           );
+          await callbacks.waitFor({ ...args, from });
           samples.push({
             ...args,
             round,
@@ -173,8 +181,9 @@ try {
 } finally {
   save();
   await sleep(2000);
-  const closed = new Promise((resolve) => logs.once("close", resolve));
   logs.kill("SIGTERM");
-  await closed;
+  await logsClosed;
+  await callbacks.done;
 }
+if (callbacks.error) throw callbacks.error;
 console.log(`Saved ${samples.length} samples to ${output}`);

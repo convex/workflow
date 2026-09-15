@@ -28,8 +28,8 @@ handlers will increase throughput.
   `handlerOnComplete` callback already returns immediately on success. Failure
   and cancellation callbacks remain enabled; ordinary step results are retained.
 - Experiment:
-  [workflow PR #284](https://github.com/get-convex/workflow/pull/284), stacked
-  on #283. Five generated components use the same workflow source.
+  [workflow PR #284](https://github.com/get-convex/workflow/pull/284), building
+  on the merged #283. Five generated components use the same workflow source.
 - Released control and exclusion treatment both use **workpool 0.4.12**.
 - Transactional package:
   [workpool PR #238](https://github.com/get-convex/workpool/pull/238) at
@@ -45,9 +45,11 @@ handlers will increase throughput.
 
 ## Workflow throughput
 
-Each trial starts 100 workflows asynchronously, each awaiting five sequential
-mutation steps. Each step writes an independent row and returns a number used in
-the workflow's final result. All 500 writes and all 100 results are checked.
+Each measured trial starts 100 workflows asynchronously, each awaiting five
+sequential mutation steps. Each step writes an independent row and returns a
+number used in the workflow's final result. All 500 writes and all 100 results
+are checked. Each workflow warm-up instead starts 10 workflows with five steps,
+checking 50 writes and 10 results.
 
 Rates are **committed steps/second**, excluding admission and idle-loop
 settling, measured through the last work/completion/callback commit in execution
@@ -83,9 +85,10 @@ about attributing all timing changes to the options.
 
 ## Direct pool throughput
 
-Each trial batch-enqueues 500 independent mutations. Each writes a completion
-row; the attached success callback returns immediately when called. Rates below
-include the completion tail, in **committed jobs/second**.
+Each measured trial batch-enqueues 500 independent mutations; each direct-pool
+warm-up uses 10 mutations. Each writes a completion row; the attached success
+callback returns immediately when called. Rates below include the completion
+tail, in **committed jobs/second**.
 
 | Mode                                   |   Parallelism 25 |   Parallelism 100 |
 | -------------------------------------- | ---------------: | ----------------: |
@@ -128,18 +131,35 @@ nor a billing estimate. Timing savings need not track execution-count savings.
 All **72 trials** passed: **54 measured trials and 18 warm-ups**. Checks include
 exact completion counts, unique indices, final workflow status and summed
 results, missing/duplicate step writes, and drained queues between trials. All
-eight preflight failed/canceled jobs produced the expected callbacks; failed
-mutation writes rolled back and canceled jobs did not execute.
+eight direct-pool preflight failed/canceled jobs produced the expected callbacks
+across `baseline`, `filtered`, `prFiltered`, and `transactional`; failed
+mutation writes rolled back and canceled jobs did not execute. There was no
+separate `allMutations` preflight or workflow-step callback-failure/rollback
+check.
 
 The log audit verifies the complete trial matrix and exact wrapper, separate
 completion, and ignored-success callback counts. There were **no measured
 retries or runtime errors**. One PR-control warm-up had nine OCC retries, which
 are retained in the artifact and excluded from measured medians.
 
+The original run waited for pool idleness between trials. The runner now also
+waits for successful callback commits, since app callbacks can outlive an idle
+pool, and the audit rejects malformed or truncated JSONL records. Re-auditing
+the original raw logs with these stricter parsing checks leaves all 72 samples
+and their reported metrics unchanged. The timing tables retain those original
+measurements.
+
+A separate eight-trial smoke run on the same isolated deployment passed the
+updated callback drain and log audit for `baseline` and `filtered`, using both
+direct jobs and mutation workflows. Its measured batches used five jobs or two
+workflows with two steps, plus the usual 10-item warm-ups; it is not included in
+the timing tables.
+
 The library build, root/example typechecks, isolated deployment, and benchmark
-typecheck pass. **129 tests pass**, including six new cases covering success
-exclusion and handler failure propagation through start, restart, and resume.
-Lint passes with three existing warnings.
+typecheck pass. **146 tests pass**, including six cases covering success
+exclusion and handler failure propagation through start, restart, and resume,
+plus 17 regression cases for callback draining, repeat validation, and strict
+log parsing. Lint passes with three existing warnings.
 
 ```sh
 npm ci

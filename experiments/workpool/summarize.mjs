@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
+import { expectedSuccessCallbacks, readLogs } from "./logs.mjs";
 
 const input = process.argv[2] ?? "experiments/workpool/results.json";
 const results = JSON.parse(readFileSync(input, "utf8"));
@@ -42,18 +42,9 @@ for (const sample of samples)
     byFunction: {},
     timingsByFunction: {},
   };
-const lines = createInterface({
-  input: createReadStream(input.replace(/\.json$/, "") + ".logs.jsonl"),
-  crlfDelay: Infinity,
-});
+const logsPath = input.replace(/\.json$/, "") + ".logs.jsonl";
 const seen = new Set();
-for await (const line of lines) {
-  let entry;
-  try {
-    entry = JSON.parse(line);
-  } catch {
-    continue;
-  }
+for await (const entry of readLogs(createReadStream(logsPath), logsPath)) {
   if (entry.kind !== "Completion") continue;
   // Stream reconnects can replay entries. Retry attempts share execution IDs,
   // so include the completion timestamp when deduplicating.
@@ -145,12 +136,7 @@ for (const sample of samples) {
   assert.equal(sample.executions.errors, 0, `Runtime errors: ${sample.run}`);
   assert.equal(
     sample.executions.scheduledSuccessCallbacks,
-    sample.mode === "baseline"
-      ? sample.count *
-          (sample.workload === "pool" || sample.workload === "inline"
-            ? 1
-            : sample.steps + 1)
-      : 0,
+    expectedSuccessCallbacks(sample),
     `Unexpected success callback count: ${sample.run}`,
   );
   sample.committedExecutionMs =
