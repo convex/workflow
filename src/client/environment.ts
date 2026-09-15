@@ -82,6 +82,65 @@ export function createDeterministicDate(
   return DeterministicDate as typeof Date;
 }
 
+// Only describe the APIs we use so consumers don't need Temporal types or a
+// polyfill. The runtime supplies the actual Temporal objects and validation.
+type TemporalNamespace = {
+  Now: object;
+  Instant: {
+    fromEpochMilliseconds(milliseconds: number): {
+      toZonedDateTimeISO(timeZone: unknown): {
+        toPlainDateTime(): unknown;
+        toPlainDate(): unknown;
+        toPlainTime(): unknown;
+      };
+    };
+  };
+};
+
+export function createDeterministicTemporal<T extends TemporalNamespace>(
+  originalTemporal: T,
+  getGenerationState: () => GenerationState,
+): T {
+  // Native Temporal.Now methods read the clock independently of Date.now().
+  const instant = () =>
+    originalTemporal.Instant.fromEpochMilliseconds(getGenerationState().now);
+  const zonedDateTimeISO = (timeZone: unknown = "UTC") =>
+    instant().toZonedDateTimeISO(timeZone);
+  const methods = {
+    instant,
+    timeZoneId: () => "UTC",
+    zonedDateTimeISO,
+    plainDateTimeISO: (timeZone: unknown = "UTC") =>
+      zonedDateTimeISO(timeZone).toPlainDateTime(),
+    plainDateISO: (timeZone: unknown = "UTC") =>
+      zonedDateTimeISO(timeZone).toPlainDate(),
+    plainTimeISO: (timeZone: unknown = "UTC") =>
+      zonedDateTimeISO(timeZone).toPlainTime(),
+  };
+  const nowDescriptors = Object.getOwnPropertyDescriptors(originalTemporal.Now);
+  for (const [key, value] of Object.entries(methods)) {
+    nowDescriptors[key] = {
+      value,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    };
+  }
+  const now = Object.create(
+    Object.getPrototypeOf(originalTemporal.Now),
+    nowDescriptors,
+  );
+  // Copy descriptors since native Temporal properties are non-enumerable.
+  // Leave the original namespace and Now object untouched for restoration.
+  return Object.create(Object.getPrototypeOf(originalTemporal), {
+    ...Object.getOwnPropertyDescriptors(originalTemporal),
+    Now: {
+      ...Object.getOwnPropertyDescriptor(originalTemporal, "Now"),
+      value: now,
+    },
+  }) as T;
+}
+
 export function setupEnvironment(
   getGenerationState: () => GenerationState,
   workflowId: string,
@@ -91,6 +150,7 @@ export function setupEnvironment(
   const patchedKeys = [
     "Math",
     "Date",
+    ...(global.Temporal === undefined ? [] : ["Temporal"]),
     "console",
     "process",
     "Crypto",
@@ -112,6 +172,14 @@ export function setupEnvironment(
     getGenerationState,
   );
 
+  // Older runtimes may not provide Temporal. Don't introduce a new global.
+  if (originals.Temporal !== undefined) {
+    global.Temporal = createDeterministicTemporal(
+      originals.Temporal as TemporalNamespace,
+      getGenerationState,
+    );
+  }
+
   // Patch console
   global.console = createConsole(
     originals.console as Console,
@@ -123,6 +191,10 @@ export function setupEnvironment(
   // user code already can't call them. Patching them here would break test
   // environments (e.g. convex-test) that share the same JS global scope and
   // rely on these globals internally.
+
+  // TODO: Also cover performance.now/timeOrigin and the clocks used internally
+  // by performance.mark/measure and PerformanceMark. Intl.DateTimeFormat's
+  // format()/formatToParts() without a date also bypass the patched Date.now().
 
   // Disable non-deterministic globals with assignments so test runtimes can
   // intercept the writes without losing their global isolation accessors.

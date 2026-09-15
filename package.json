@@ -73,6 +73,7 @@
     "@edge-runtime/vm": "5.0.0",
     "@eslint/eslintrc": "3.3.7",
     "@eslint/js": "10.0.1",
+    "@js-temporal/polyfill": "0.5.1",
     "@types/node": "26.6.6",
     "@typescript-eslint/eslint-plugin": "8.73.0",
     "@typescript-eslint/parser": "8.73.0",
