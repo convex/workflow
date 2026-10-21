@@ -55,6 +55,20 @@ describe("oversized values", () => {
     expect(flow.out).not.toBeNull();
     expect(flow.out.kind).toBe("failed");
     expect(flow.out.error).toContain("Step return value too large");
+
+    const { page } = await t.query(components.workflow.oversizedValues.list, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(page).toHaveLength(1);
+    const { stepId } = page[0];
+    expect(
+      await t.mutation(components.workflow.oversizedValues.read, { stepId }),
+    ).toBe("x".repeat(900_000));
+    await t.mutation(components.workflow.oversizedValues.remove, { stepId });
+    await expect(
+      t.mutation(components.workflow.oversizedValues.read, { stepId }),
+    ).rejects.toThrow("No oversized value found");
+    await t.mutation(components.workflow.oversizedValues.remove, { stepId });
   });
 
   test("large event value fails workflow and calls onComplete", async () => {
@@ -87,6 +101,15 @@ describe("oversized values", () => {
 
     // Send the oversized event
     await t.mutation(internal.oversized.sendBigEvent, { workflowId });
+    // The value must be available before any scheduled functions run.
+    const { page } = await t.query(components.workflow.oversizedValues.list, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(page).toHaveLength(1);
+    const { stepId } = page[0];
+    expect(
+      await t.mutation(components.workflow.oversizedValues.read, { stepId }),
+    ).toBe("y".repeat(900_000));
     await t.finishAllScheduledFunctions(vi.runAllTimers);
 
     const status2 = await t.run((ctx) =>
@@ -107,5 +130,44 @@ describe("oversized values", () => {
     expect(flow!.out).not.toBeNull();
     expect(flow!.out.kind).toBe("failed");
     expect(flow!.out.error).toContain("Step return value too large");
+
+    expect(
+      await t.mutation(components.workflow.workflow.cleanup, { workflowId }),
+    ).toBe(true);
+    await expect(
+      t.mutation(components.workflow.oversizedValues.read, { stepId }),
+    ).rejects.toThrow("No oversized value found");
+  });
+
+  test("stores an oversized event sent before the workflow awaits it", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.mutation(async (ctx) => {
+      const id = await workflow.start(
+        ctx,
+        internal.oversized.eventWorkflow,
+        {},
+        {
+          startAsync: true,
+        },
+      );
+      await ctx.runMutation(internal.oversized.sendBigEvent, {
+        workflowId: id,
+      });
+      return id;
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const status = await t.run((ctx) =>
+      getStatus(ctx, components.workflow, workflowId),
+    );
+    expect(status.type).toBe("failed");
+    const { page } = await t.query(components.workflow.oversizedValues.list, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(page).toHaveLength(1);
+    expect(
+      await t.mutation(components.workflow.oversizedValues.read, {
+        stepId: page[0].stepId,
+      }),
+    ).toBe("y".repeat(900_000));
   });
 });

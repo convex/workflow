@@ -18,6 +18,8 @@ import type * as passingSignals from "../passingSignals.js";
 import type * as test_contextRoundtrip from "../test/contextRoundtrip.js";
 import type * as test_inline from "../test/inline.js";
 import type * as test_oldSyntax from "../test/oldSyntax.js";
+import type * as test_oversizedStorage from "../test/oversizedStorage.js";
+import type * as test_storageProbe from "../test/storageProbe.js";
 import type * as transcription from "../transcription.js";
 import type * as userConfirmation from "../userConfirmation.js";
 
@@ -38,6 +40,8 @@ declare const fullApi: ApiFromModules<{
   "test/contextRoundtrip": typeof test_contextRoundtrip;
   "test/inline": typeof test_inline;
   "test/oldSyntax": typeof test_oldSyntax;
+  "test/oversizedStorage": typeof test_oversizedStorage;
+  "test/storageProbe": typeof test_storageProbe;
   transcription: typeof transcription;
   userConfirmation: typeof userConfirmation;
 }>;
