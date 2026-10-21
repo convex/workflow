@@ -122,6 +122,13 @@ export default defineSchema({
     "workflowId",
     "state.kind",
   ]),
+  oversizedValues: defineTable({
+    workflowId: v.id("workflows"),
+    name: v.string(),
+    kind: v.union(v.literal("returnValue"), v.literal("args")),
+    stepId: v.id("steps"),
+    storageId: v.id("_storage"),
+  }).index("stepId", ["stepId"]),
   onCompleteFailures: defineTable(
     v.union(
       v.object({

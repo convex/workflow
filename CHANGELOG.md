@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- When a step fails due to an oversized result, the result is saved in file storage. The value can be read with `oversizedValues.read` for debugging. Workflow cleanup and restart delete stored values.
+- Requires Convex 1.48 or newer for file storage access in mutations.
+
 ## 0.4.10
 
 - Updates the /test entrypoint for compatibility with convex-test's new

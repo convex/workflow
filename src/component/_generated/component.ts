@@ -303,6 +303,22 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    oversizedValues: {
+      read: FunctionReference<
+        "mutation",
+        "internal",
+        { stepId: string },
+        any,
+        Name
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { stepId: string },
+        null,
+        Name
+      >;
+    };
     workflow: {
       cancel: FunctionReference<
         "mutation",

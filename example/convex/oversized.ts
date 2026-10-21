@@ -27,6 +27,19 @@ export const largeReturnWorkflow = workflow
     return result;
   });
 
+export const overStorageLimitAction = internalAction({
+  args: {},
+  returns: v.string(),
+  // Escaping NUL characters produces an 18 MB JSON blob.
+  handler: async (): Promise<string> => "\0".repeat(3_000_000),
+});
+
+export const overStorageLimitWorkflow = workflow
+  .define({ args: {} })
+  .handler(async (step) => {
+    return await step.runAction(internal.oversized.overStorageLimitAction, {});
+  });
+
 export const bigEvent = defineEvent({
   name: "bigEvent",
   validator: v.string(),
@@ -40,6 +53,29 @@ export const eventWorkflow = workflow
     const result = await step.awaitEvent(bigEvent);
     return result;
   });
+
+export const eventBatchWorkflow = workflow
+  .define({ args: {} })
+  .handler(async (step) => {
+    await Promise.all(
+      Array.from({ length: 11 }, (_, i) =>
+        step.awaitEvent({ name: `batch-${i}` }),
+      ),
+    );
+  });
+
+export const sendEventBatch = internalMutation({
+  args: { workflowId: vWorkflowId },
+  handler: async (ctx, { workflowId }) => {
+    for (let i = 0; i < 11; i++) {
+      await sendEvent(ctx, components.workflow, {
+        workflowId,
+        name: `batch-${i}`,
+        value: "z".repeat(900_000),
+      });
+    }
+  },
+});
 
 export const sendBigEvent = internalMutation({
   args: {
