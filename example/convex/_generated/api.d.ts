@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as catchError from "../catchError.js";
 import type * as e2e from "../e2e.js";
 import type * as example from "../example.js";
+import type * as journalExample from "../journalExample.js";
 import type * as nestedWorkflow from "../nestedWorkflow.js";
 import type * as oversized from "../oversized.js";
 import type * as passingSignals from "../passingSignals.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   catchError: typeof catchError;
   e2e: typeof e2e;
   example: typeof example;
+  journalExample: typeof journalExample;
   nestedWorkflow: typeof nestedWorkflow;
   oversized: typeof oversized;
   passingSignals: typeof passingSignals;

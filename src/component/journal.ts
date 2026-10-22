@@ -20,7 +20,7 @@ import { getDefaultLogger } from "./utils.js";
 import { assert } from "convex-helpers";
 import { MAX_JOURNAL_SIZE } from "../shared.js";
 import { awaitEvent } from "./event.js";
-import { createHandler } from "./workflow.js";
+import type { Id } from "./_generated/dataModel.js";
 
 export const load = query({
   args: {
@@ -142,13 +142,13 @@ export const startSteps = mutation({
             });
           }
         } else if (step.kind === "workflow") {
-          const workflowId = await createHandler(ctx, {
-            workflowName: step.name,
-            workflowHandle: step.handle,
-            workflowArgs: step.args,
-            maxParallelism: args.workpoolOptions?.maxParallelism,
-            onComplete: {
-              fnHandle: await createFunctionHandle(
+          // Let the child definition create its workflow so it supplies its
+          // own version, which may differ from the parent step's version.
+          const workflowId = await ctx.runMutation(
+            step.handle as FunctionHandle<"mutation">,
+            {
+              args: step.args,
+              onComplete: await createFunctionHandle(
                 internal.pool.nestedWorkflowOnComplete,
               ),
               context: {
@@ -156,10 +156,10 @@ export const startSteps = mutation({
                 generationNumber,
                 workpoolOptions: args.workpoolOptions,
               } satisfies OnCompleteContext,
+              startAsync: true,
             },
-            startAsync: true,
-          });
-          step.workflowId = workflowId;
+          );
+          step.workflowId = workflowId as Id<"workflows">;
         } else if (step.runResult) {
           // Already completed inline by the caller — nothing to enqueue.
           console.event("stepCompleted", {

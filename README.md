@@ -488,6 +488,63 @@ export const scrapeAll = workflow.define({
 actions. Per-call options always take precedence, the original `step` context
 is unaffected, and calls can be chained (later defaults win).
 
+### Versioning workflow code with `step.journal`
+
+Changing a workflow's code (reordering, adding, or removing steps) can break
+replay for workflows that are already running. Use `step.journal` to keep those
+workflows compatible with the new code:
+
+```ts
+export const scrapeAll = workflow.define({
+  args: { urls: v.array(v.string()) },
+  version: 2, // bump when making a breaking change; defaults to 0
+  handler: async (step, { urls }) => {
+    for (const url of urls) {
+      // Skip argument validation for steps recorded before v2. Check each
+      // iteration so new steps use normal validation.
+      const lenientStep =
+        step.journal.getVersion() < 2
+          ? step.withOptions({ unstableArgs: true })
+          : step;
+      await pool.enqueueAction(lenientStep, internal.scrape.page, { url });
+    }
+  },
+});
+```
+
+While replaying, `step.journal.getVersion()` returns the `version` used to
+record the next step. Once all recorded steps have been replayed, it returns the
+current workflow definition's `version`. Steps recorded without a version use 0.
+Check the version _before_ the steps whose behavior changed.
+
+If new code removes a step, use `step.journal.consumeNext()` to replay past it.
+This also works for steps called by a library:
+
+```ts
+if (step.journal.getVersion() < 2) {
+  // Skip the removed v1 step and inspect its recorded arguments and result.
+  const skipped = await step.journal.consumeNext("scrapePool/lib:enqueue");
+}
+```
+
+The step name is optional. If provided, `consumeNext` checks that it matches the
+next recorded step and throws if it doesn't. Only call `consumeNext` when
+replaying old steps, as in the version check above; it throws if there are no
+recorded steps left to replay. The step is not rerun, and its history is
+preserved for future replays. The returned step includes its recorded `args` and
+a required `result`: a success, failure, or cancellation. Recorded failures are
+returned in `result`, without throwing.
+
+You can also check how many step calls the workflow has made so far:
+
+```ts
+step.journal.getStepCount();
+```
+
+The count includes pending calls and recorded steps skipped with
+`consumeNext()`. It returns the same value at the same point on first execution
+and replay, including when steps run in parallel.
+
 ### Checking a workflow's status
 
 Calling a workflow returns a `WorkflowId` string, which can then be used for

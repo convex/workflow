@@ -11,9 +11,14 @@ import type {
   FunctionVisibility,
 } from "convex/server";
 import type { Validator } from "convex/values";
-import type { EventId, SchedulerOptions, WorkflowId } from "../types.js";
+import type {
+  ConsumedWorkflowStep,
+  EventId,
+  SchedulerOptions,
+  WorkflowId,
+} from "../types.js";
 import { safeFunctionName } from "./safeFunctionName.js";
-import type { StepRequest } from "./step.js";
+import type { ExecutorRequest, StepRequest } from "./step.js";
 import type {
   RunResult,
   TransactionLimits,
@@ -168,6 +173,68 @@ export type WorkflowCtx = {
   sleep(duration: number, opts?: { name?: string }): Promise<void>;
 
   /**
+   * Introspection of (and remediation against) the workflow's journal — the
+   * recorded log of steps this workflow has executed. All of these are
+   * position-scoped: they answer relative to the current replay point, so
+   * they return the same values on first execution and on every replay.
+   */
+  journal: {
+    /**
+     * The workflow definition's `version` as of this point in the journal.
+     *
+     * Behaves like `Date.now()`: while replaying, it returns the version
+     * stamped on the next recorded step; at the frontier (no steps left to
+     * replay), it returns the current definition's `version`. Steps recorded
+     * before versions existed read as 0.
+     *
+     * Use it to gate behavior on which version of the code recorded the
+     * history at this point:
+     * ```ts
+     * const step_ =
+     *   step.journal.getVersion() < 2
+     *     ? step.withOptions({ unstableArgs: true })
+     *     : step;
+     * ```
+     * Gate *before* the steps it protects: code after the last recorded step
+     * always sees the live version (same caveat as `Date.now()`).
+     */
+    getVersion: () => number;
+    /**
+     * The number of step calls made so far, including pending calls and
+     * recorded steps successfully skipped with consumeNext(). This count
+     * is the same at the same point on first execution and replay.
+     */
+    getStepCount: () => number;
+    /**
+     * Consume the next recorded journal entry without issuing a step call,
+     * returning the entry (including its recorded `args` and required
+     * `result`) for inspection. The result is a success, failure, or
+     * cancellation. Nothing is re-executed and nothing new is recorded;
+     * the entry stays in the journal for future replays.
+     *
+     * Use this when your code no longer issues a step that old histories
+     * recorded — e.g. you removed a function call (or a library call whose
+     * step name/args were computed internally) and want old workflows to
+     * replay past it:
+     * ```ts
+     * if (step.journal.getVersion() < 2) {
+     *   // v1 recorded a step here that v2 code no longer performs.
+     *   const skipped = await step.journal.consumeNext("scrapePool/lib:enqueue");
+     * }
+     * ```
+     *
+     * @param name - If provided, throws unless the next recorded step has
+     *   this name. Strongly recommended: without it, consuming the wrong
+     *   step shifts every subsequent replay match by one.
+     * @throws At the live frontier (no recorded steps left to replay) — only
+     *   call this in a branch gated on replaying old history, e.g. via
+     *   `getVersion()`. Do not call it inside `Promise.all`; it's
+     *   positional, like the rest of replay matching.
+     */
+    consumeNext: (name?: string) => Promise<ConsumedWorkflowStep>;
+  };
+
+  /**
    * Derive a new `WorkflowCtx` that applies the given options to every step
    * it runs, unless overridden at the call site. The original ctx is
    * unaffected.
@@ -188,30 +255,78 @@ export type WorkflowCtx = {
   withOptions(defaults: StepDefaults): WorkflowCtx;
 };
 
+export type JournalState = {
+  version: number;
+};
+
+type RunStep = (request: Omit<StepRequest, "resolve">) => Promise<unknown>;
+
 export function createWorkflowCtx(
   workflowId: WorkflowId,
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<ExecutorRequest>,
+  getJournalState?: () => JournalState,
   defaults?: StepDefaults,
+  progress = { stepCount: 0 },
 ): WorkflowCtx {
+  const journalState = () => {
+    if (!getJournalState) {
+      throw new Error("step.journal is not available in this context");
+    }
+    return getJournalState();
+  };
+  const runStep: RunStep = (request) => {
+    // Count at the call site, before enqueueing can yield or block. Derived
+    // contexts share this counter, independently of executor batching.
+    progress.stepCount++;
+    return run(sender, request);
+  };
   return {
     workflowId,
+    journal: {
+      getVersion: () => journalState().version,
+      getStepCount: () => {
+        journalState();
+        return progress.stepCount;
+      },
+      consumeNext: async (name?: string) => {
+        let send: Promise<void>;
+        const p = new Promise<ConsumedWorkflowStep>((resolve, reject) => {
+          send = sender.push({
+            consume: true,
+            expectedName: name,
+            resolve,
+            reject,
+          });
+        });
+        await send!;
+        const entry = await p;
+        progress.stepCount++;
+        return entry;
+      },
+    },
     withOptions: (opts) =>
-      createWorkflowCtx(workflowId, sender, { ...defaults, ...opts }),
+      createWorkflowCtx(
+        workflowId,
+        sender,
+        getJournalState,
+        { ...defaults, ...opts },
+        progress,
+      ),
     runQuery: async (query, args, opts?) => {
-      return runFunction(sender, "query", query, args, opts, defaults);
+      return runFunction(runStep, "query", query, args, opts, defaults);
     },
 
     runMutation: async (mutation, args, opts?) => {
-      return runFunction(sender, "mutation", mutation, args, opts, defaults);
+      return runFunction(runStep, "mutation", mutation, args, opts, defaults);
     },
 
     runAction: async (action, args, opts?) => {
-      return runFunction(sender, "action", action, args, opts, defaults);
+      return runFunction(runStep, "action", action, args, opts, defaults);
     },
 
     runWorkflow: async (workflow, args, opts?) => {
       const { name, unstableArgs, ...schedulerOptions } = opts ?? {};
-      return run(sender, {
+      return runStep({
         name: name ?? safeFunctionName(workflow),
         target: {
           kind: "workflow",
@@ -227,7 +342,7 @@ export function createWorkflowCtx(
     },
 
     sleep: async (duration, opts?) => {
-      await run(sender, {
+      await runStep({
         name: opts?.name ?? "sleep",
         target: {
           kind: "sleep",
@@ -242,7 +357,7 @@ export function createWorkflowCtx(
     },
 
     awaitEvent: async (event) => {
-      const result = await run(sender, {
+      const result = await runStep({
         name: event.name ?? event.id ?? "Event",
         target: {
           kind: "event",
@@ -267,7 +382,7 @@ async function runFunction<
     | FunctionReference<FunctionType, FunctionVisibility>
     | FunctionReference_future<FunctionType, FunctionVisibility>,
 >(
-  sender: BaseChannel<StepRequest>,
+  runStep: RunStep,
   functionType: FunctionType,
   f: F,
   args: Record<string, unknown> | undefined,
@@ -298,7 +413,7 @@ async function runFunction<
   if (!inline && transactionLimits) {
     throw new Error("Cannot set transaction limits for non-inline functions.");
   }
-  return run(sender, {
+  return runStep({
     name: name ?? safeFunctionName(f),
     target: {
       kind: "function",
@@ -315,7 +430,7 @@ async function runFunction<
 }
 
 async function run(
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<ExecutorRequest>,
   request: Omit<StepRequest, "resolve">,
 ): Promise<unknown> {
   let send: Promise<void>;

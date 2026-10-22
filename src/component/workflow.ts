@@ -20,14 +20,11 @@ import {
   journalDocument,
   vOnComplete,
   workflowDocument,
-  type JournalEntry,
 } from "./schema.js";
 import { getDefaultLogger } from "./utils.js";
 import {
   type WorkflowId,
   type OnCompleteArgs,
-  type WorkflowStep,
-  type EventId,
   vPaginationResult,
   vWorkflowStep,
   type SchedulerOptions,
@@ -35,7 +32,7 @@ import {
   vPublicWorkflow,
 } from "../types.js";
 import { api, internal } from "./_generated/api.js";
-import { formatErrorWithStack } from "../shared.js";
+import { formatErrorWithStack, publicStep } from "../shared.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
 
 const createArgs = v.object({
@@ -46,6 +43,7 @@ const createArgs = v.object({
   onComplete: v.optional(vOnComplete),
   startAsync: v.optional(v.boolean()),
   createOnly: v.optional(v.boolean()),
+  version: v.optional(v.number()),
   // TODO: ttl
 });
 export const create = mutation({
@@ -67,6 +65,9 @@ export async function createHandler(
     args: args.workflowArgs,
     generationNumber: 0,
     onComplete: args.onComplete,
+    // Current clients pass the definition's version. Default to 0 for
+    // legacy callers that do not provide one.
+    version: args.version ?? 0,
   });
   console.debug(
     `Created workflow ${workflowId}:`,
@@ -138,49 +139,6 @@ function publicWorkflow(workflow: Doc<"workflows">): PublicWorkflow {
     context: workflow.onComplete?.context,
     runResult: workflow.runResult,
   } satisfies PublicWorkflow;
-}
-
-function publicStep(step: JournalEntry): WorkflowStep {
-  const commonFields = {
-    workflowId: publicWorkflowId(step.workflowId),
-    name: step.step.name,
-    stepId: step._id,
-    stepNumber: step.stepNumber,
-
-    args: step.step.args,
-    runResult: step.step.runResult,
-
-    startedAt: step.step.startedAt,
-    completedAt: step.step.completedAt,
-  };
-  switch (step.step.kind) {
-    case "event":
-      return {
-        ...commonFields,
-        kind: "event",
-        eventId: step.step.eventId as unknown as EventId,
-      };
-    case "workflow":
-      return {
-        ...commonFields,
-        kind: "workflow",
-        nestedWorkflowId: publicWorkflowId(step.step.workflowId!),
-      };
-    case "function":
-      return {
-        ...commonFields,
-        kind: "function",
-        workId: step.step.workId,
-      };
-    case "sleep":
-      return {
-        ...commonFields,
-        kind: "sleep",
-        workId: step.step.workId!,
-      };
-    default:
-      throw new Error(`Unknown step kind: ${(step.step as any).kind}`);
-  }
 }
 
 export const list = query({

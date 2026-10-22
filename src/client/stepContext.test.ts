@@ -1,7 +1,7 @@
 import { describe, it, expect, test } from "vitest";
 import { BaseChannel } from "async-channel";
 import type { RunResult } from "./types.js";
-import type { StepRequest } from "./step.js";
+import type { ExecutorRequest, StepRequest } from "./step.js";
 import { StepExecutor } from "./step.js";
 import type { JournalEntry } from "../component/schema.js";
 import { createWorkflowCtx } from "./workflowContext.js";
@@ -14,6 +14,14 @@ function fakeFuncRef(name: string) {
   return anyApi[name].default as FunctionReference<any, "internal">;
 }
 
+// Narrow an ExecutorRequest to a StepRequest in tests that don't consume.
+function asStepRequest(msg: ExecutorRequest): StepRequest {
+  if ("consume" in msg) {
+    throw new Error("Unexpected consume request");
+  }
+  return msg;
+}
+
 // Build a completed journal entry for replay.
 function journalEntry(
   overrides: {
@@ -22,6 +30,7 @@ function journalEntry(
     args?: Record<string, unknown>;
     runResult?: RunResult;
     stepNumber?: number;
+    version?: number;
   } = {},
 ): JournalEntry {
   const kind = overrides.kind ?? "function";
@@ -42,6 +51,7 @@ function journalEntry(
     },
     startedAt: 1000,
     completedAt: 2000,
+    version: overrides.version,
   };
   if (kind === "function") {
     return {
@@ -77,11 +87,14 @@ function journalEntry(
 // Simulate the StepExecutor replay loop: read messages from the channel and
 // resolve them from the journal, without needing a real Convex ctx.
 async function replayFromJournal(
-  receiver: BaseChannel<StepRequest>,
+  receiver: BaseChannel<ExecutorRequest>,
   entries: JournalEntry[],
 ) {
   for (const entry of entries) {
     const message = await receiver.get();
+    if ("consume" in message) {
+      throw new Error("Unexpected consume request in replayFromJournal");
+    }
     // Mirrors StepExecutor.completeMessage
     if (entry.step.runResult === undefined) {
       throw new Error(
@@ -94,7 +107,7 @@ async function replayFromJournal(
 
 describe("StepExecutor + WorkflowCtx integration", () => {
   it("resolves a successful step", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-1" as WorkflowId, channel);
 
     const entry = journalEntry({
@@ -111,7 +124,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("throws on a failed step and the error is catchable", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-2" as any, channel);
 
     const entry = journalEntry({
@@ -129,7 +142,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("throws on a canceled step", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-3" as any, channel);
 
     const entry = journalEntry({
@@ -147,7 +160,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("handles sequential steps", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-4" as any, channel);
 
     const entries = [
@@ -180,7 +193,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("catches an error mid-workflow and continues", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-5" as any, channel);
 
     const entries = [
@@ -217,7 +230,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("handles parallel steps via Promise.all", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-6" as any, channel);
 
     const entries = [
@@ -251,7 +264,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("one failure in Promise.all rejects the batch", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-7" as any, channel);
 
     const entries = [
@@ -286,7 +299,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("error is thrown from run(), not from completeMessage", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-8" as any, channel);
 
     const entry = journalEntry({
@@ -309,7 +322,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("runMutation works the same as runAction", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-9" as any, channel);
 
     const entry = journalEntry({
@@ -326,7 +339,7 @@ describe("StepExecutor + WorkflowCtx integration", () => {
   });
 
   it("runQuery works the same as runAction", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-10" as any, channel);
 
     const entry = journalEntry({
@@ -381,7 +394,7 @@ describe("unstableArgs", () => {
       {} as any,
       {} as any,
       entries,
-      new BaseChannel<StepRequest>(0),
+      new BaseChannel<ExecutorRequest>(0),
       Date.now(),
       undefined,
     );
@@ -456,13 +469,13 @@ describe("unstableArgs", () => {
   });
 
   test("unstableArgs passes through and defaults correctly", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-test" as any, channel);
 
     const calls: StepRequest[] = [];
     const drain = async () => {
       for (let i = 0; i < 8; i++) {
-        const msg = await channel.get();
+        const msg = asStepRequest(await channel.get());
         calls.push(msg);
         msg.resolve({ kind: "success", returnValue: null });
       }
@@ -500,12 +513,12 @@ describe("withOptions", () => {
     run: (ctx: ReturnType<typeof createWorkflowCtx>) => Promise<void>,
     count: number,
   ): Promise<StepRequest[]> {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-test" as any, channel);
     const calls: StepRequest[] = [];
     const drain = async () => {
       for (let i = 0; i < count; i++) {
-        const msg = await channel.get();
+        const msg = asStepRequest(await channel.get());
         calls.push(msg);
         msg.resolve({ kind: "success", returnValue: null });
       }
@@ -582,13 +595,13 @@ describe("transactionLimits", () => {
   const limits = { documentsRead: 5, bytesWritten: 100 };
 
   test("passes through inline runQuery/runMutation into the StepRequest", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-test" as any, channel);
 
     const calls: StepRequest[] = [];
     const drain = async () => {
       for (let i = 0; i < 3; i++) {
-        const msg = await channel.get();
+        const msg = asStepRequest(await channel.get());
         calls.push(msg);
         msg.resolve({ kind: "success", returnValue: null });
       }
@@ -634,7 +647,7 @@ describe("transactionLimits", () => {
       fakeCtx as any,
       { journal: { startSteps: "handle" } } as any,
       [],
-      new BaseChannel<StepRequest>(0),
+      new BaseChannel<ExecutorRequest>(0),
       Date.now(),
       undefined,
     );
@@ -666,7 +679,7 @@ describe("transactionLimits", () => {
   });
 
   test("rejects transactionLimits / inline where unsupported", async () => {
-    const channel = new BaseChannel<StepRequest>(0);
+    const channel = new BaseChannel<ExecutorRequest>(0);
     const ctx = createWorkflowCtx("wf-test" as any, channel);
 
     // Actions cannot run inline.
@@ -693,5 +706,305 @@ describe("transactionLimits", () => {
         { inline: true, runAfter: 1000 },
       ),
     ).rejects.toThrow("Cannot combine `inline` with `runAt` or `runAfter`.");
+  });
+});
+
+describe("step.journal", () => {
+  // Wire a real StepExecutor to a WorkflowCtx and run the executor loop in
+  // the background, like workflowMutation does. The executor never reaches
+  // startSteps in these tests (no frontier steps), so no real ctx is needed.
+  function setup(
+    entries: JournalEntry[],
+    definedVersion?: number,
+    capacity = 0,
+  ) {
+    const channel = new BaseChannel<ExecutorRequest>(capacity);
+    const executor = new StepExecutor(
+      "wf-test",
+      0,
+      {} as any,
+      {} as any,
+      entries,
+      channel,
+      12345,
+      undefined,
+      definedVersion,
+    );
+    const ctx = createWorkflowCtx(
+      "wf-test" as any,
+      channel,
+      executor.getJournalState.bind(executor),
+    );
+    // Runs forever (until GC) once the journal is exhausted; don't await it.
+    void executor.run();
+    return { ctx, executor };
+  }
+
+  test.each([0, 1, 2, 10])(
+    "getVersion follows recorded steps with channel capacity %s",
+    async (capacity) => {
+      const entries = [
+        journalEntry({ name: "a", version: 1, stepNumber: 0 }),
+        journalEntry({ name: "b", stepNumber: 1 }), // pre-version entry
+      ];
+      const { ctx } = setup(entries, 3, capacity);
+
+      expect(ctx.journal.getVersion()).toBe(1);
+      await ctx.runAction(fakeFuncRef("a"), {});
+      // Next recorded step has no version stamp: reads as 0.
+      expect(ctx.journal.getVersion()).toBe(0);
+      await ctx.runAction(fakeFuncRef("b"), {});
+      // Frontier: the current definition's version.
+      expect(ctx.journal.getVersion()).toBe(3);
+    },
+  );
+
+  test("getVersion defaults to 0 at the frontier with no defined version", async () => {
+    const { ctx } = setup([]);
+    expect(ctx.journal.getVersion()).toBe(0);
+  });
+
+  test("getStepCount advances with step calls", async () => {
+    const entries = [
+      journalEntry({ name: "a", stepNumber: 0 }),
+      journalEntry({ name: "b", stepNumber: 1 }),
+    ];
+    const { ctx } = setup(entries, 1);
+
+    expect(ctx.journal.getStepCount()).toBe(0);
+    await ctx.runAction(fakeFuncRef("a"), {});
+    expect(ctx.journal.getStepCount()).toBe(1);
+    await ctx.runAction(fakeFuncRef("b"), {});
+    expect(ctx.journal.getStepCount()).toBe(2);
+  });
+
+  test.each([0, 2, 10])(
+    "counts all pending calls with channel capacity %s",
+    async (capacity) => {
+      const entries = Array.from({ length: 20 }, (_, stepNumber) =>
+        journalEntry({ name: `step${stepNumber}`, stepNumber }),
+      );
+      const { ctx } = setup(entries, 1, capacity);
+      const derived = ctx
+        .withOptions({ unstableArgs: true })
+        .withOptions({ retry: false });
+      const pending = Array.from({ length: 20 }, (_, index) => {
+        const caller = index % 2 ? derived : ctx;
+        const result = caller.runAction(fakeFuncRef(`step${index}`), {});
+        expect(ctx.journal.getStepCount()).toBe(index + 1);
+        expect(derived.journal.getStepCount()).toBe(index + 1);
+        return result;
+      });
+      await pending[0];
+      expect(ctx.journal.getStepCount()).toBe(20);
+      await Promise.all(pending);
+      expect(ctx.journal.getStepCount()).toBe(20);
+    },
+  );
+
+  test("step count is identical for parallel inline execution and replay", async () => {
+    const recorded: JournalEntry[] = [];
+    const fakeCtx = {
+      runQuery: async () => "ok",
+      runMutation: async (
+        _fn: unknown,
+        args: { steps: { step: JournalEntry["step"] }[] },
+      ) => {
+        const entries = args.steps.map(({ step }, index) => ({
+          ...journalEntry({ stepNumber: index }),
+          step,
+        }));
+        recorded.push(...entries);
+        return entries;
+      },
+    };
+    async function execute(entries: JournalEntry[]) {
+      const channel = new BaseChannel<ExecutorRequest>(10);
+      const executor = new StepExecutor(
+        "wf-test",
+        0,
+        fakeCtx as any,
+        { journal: { startSteps: "handle" } } as any,
+        [...entries],
+        channel,
+        1000,
+        undefined,
+      );
+      const ctx = createWorkflowCtx(
+        "wf-test" as WorkflowId,
+        channel,
+        executor.getJournalState.bind(executor),
+      );
+      const handler = (async () => {
+        const pending = Array.from({ length: 8 }, (_, index) =>
+          ctx.runQuery(fakeFuncRef(`q${index}`), {}, { inline: true }),
+        );
+        const counts = [ctx.journal.getStepCount()];
+        await pending[0];
+        counts.push(ctx.journal.getStepCount());
+        await Promise.all(pending);
+        counts.push(ctx.journal.getStepCount());
+        return counts;
+      })();
+      void executor.run();
+      return handler;
+    }
+    const t = initConvexTest();
+    const first = await t.run(() => execute([]));
+    expect(recorded).toHaveLength(8);
+    const replay = await execute(recorded);
+    expect(first).toEqual([8, 8, 8]);
+    expect(replay).toEqual(first);
+  });
+
+  test("invalid calls do not increment the step count", async () => {
+    const { ctx } = setup([], 1);
+    await expect(
+      (ctx.runAction as any)(fakeFuncRef("a"), {}, { inline: true }),
+    ).rejects.toThrow("Cannot run an action inline.");
+    expect(ctx.journal.getStepCount()).toBe(0);
+  });
+
+  test("consumeNext consumes the next recorded step and returns it", async () => {
+    const entries = [
+      journalEntry({
+        name: "legacy",
+        args: { x: 1 },
+        runResult: { kind: "success", returnValue: "old" },
+        version: 1,
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "kept",
+        runResult: { kind: "success", returnValue: "still here" },
+        version: 1,
+        stepNumber: 1,
+      }),
+    ];
+    const { ctx } = setup(entries, 2);
+
+    const skipped = await ctx.journal.consumeNext("legacy");
+    expect(skipped.name).toBe("legacy");
+    expect(skipped.kind).toBe("function");
+    expect(skipped.args).toEqual({ x: 1 });
+    expect(skipped.result).toEqual({ kind: "success", returnValue: "old" });
+    expect(skipped).not.toHaveProperty("runResult");
+    expect(skipped.version).toBe(1);
+    expect(skipped.stepNumber).toBe(0);
+
+    // Consumption advanced the replay position: the next step call matches
+    // the following entry, and the counters include the consumed entry.
+    expect(ctx.journal.getStepCount()).toBe(1);
+    const result = await ctx.runAction(fakeFuncRef("kept"), {});
+    expect(result).toBe("still here");
+  });
+
+  test("consumeNext without a name consumes whatever is next", async () => {
+    const entries = [journalEntry({ name: "whatever", stepNumber: 0 })];
+    const { ctx } = setup(entries, 1);
+
+    const skipped = await ctx.journal.consumeNext();
+    expect(skipped.name).toBe("whatever");
+  });
+
+  test("consumeNext returns a recorded failure rather than throwing", async () => {
+    const entries = [
+      journalEntry({
+        name: "failed",
+        runResult: { kind: "failed", error: "boom" },
+        stepNumber: 0,
+      }),
+    ];
+    const { ctx } = setup(entries, 1);
+
+    const skipped = await ctx.journal.consumeNext("failed");
+    expect(skipped.result).toEqual({ kind: "failed", error: "boom" });
+  });
+
+  test("consumeNext returns a recorded cancellation rather than throwing", async () => {
+    const entries = [
+      journalEntry({ name: "canceled", runResult: { kind: "canceled" } }),
+    ];
+    const { ctx } = setup(entries, 1);
+
+    const skipped = await ctx.journal.consumeNext("canceled");
+    expect(skipped.result).toEqual({ kind: "canceled" });
+  });
+
+  test.each(["in-progress", "missing result"])(
+    "consumeNext rejects a %s entry without consuming it",
+    async (state) => {
+      const entry = journalEntry({ name: "legacy" });
+      entry.step.runResult = undefined;
+      entry.step.inProgress = state === "in-progress";
+      const { ctx } = setup([entry], 1);
+      const error =
+        state === "in-progress"
+          ? "in-progress journal entry"
+          : "no outcome for completed step";
+
+      await expect(ctx.journal.consumeNext("legacy")).rejects.toThrow(error);
+      expect(ctx.journal.getStepCount()).toBe(0);
+      // Retrying still sees the same entry, rather than the live frontier.
+      await expect(ctx.journal.consumeNext("legacy")).rejects.toThrow(error);
+    },
+  );
+
+  test("consumeNext throws on a name mismatch", async () => {
+    const entries = [journalEntry({ name: "other", stepNumber: 0 })];
+    const { ctx } = setup(entries, 1);
+
+    await expect(ctx.journal.consumeNext("legacy")).rejects.toThrow(
+      'Journal entry mismatch: consumeNext (expected "legacy") found step "other"',
+    );
+  });
+
+  test("a caught consumeNext mismatch leaves the journal aligned", async () => {
+    const entries = [
+      journalEntry({
+        name: "other",
+        runResult: { kind: "success", returnValue: "first" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "kept",
+        runResult: { kind: "success", returnValue: "second" },
+        stepNumber: 1,
+      }),
+    ];
+    const { ctx } = setup(entries, 1);
+
+    await expect(ctx.journal.consumeNext("legacy")).rejects.toThrow(
+      "Journal entry mismatch",
+    );
+
+    // The mismatched entry was not consumed, so replay continues from it
+    // rather than being shifted by one.
+    expect(ctx.journal.getStepCount()).toBe(0);
+    expect(await ctx.runAction(fakeFuncRef("other"), {})).toBe("first");
+    expect(await ctx.runAction(fakeFuncRef("kept"), {})).toBe("second");
+  });
+
+  test("consumeNext throws at the live frontier", async () => {
+    const { ctx } = setup([], 1);
+
+    await expect(ctx.journal.consumeNext("legacy")).rejects.toThrow(
+      "no recorded step to consume",
+    );
+  });
+
+  test("journal accessors throw without an executor (no getJournalState)", () => {
+    const channel = new BaseChannel<ExecutorRequest>(0);
+    const ctx = createWorkflowCtx("wf-test" as any, channel);
+    expect(() => ctx.journal.getVersion()).toThrow(
+      "step.journal is not available",
+    );
+  });
+
+  test("withOptions-derived ctx shares the journal namespace", async () => {
+    const entries = [journalEntry({ name: "a", version: 5, stepNumber: 0 })];
+    const { ctx } = setup(entries, 7);
+    const derived = ctx.withOptions({ unstableArgs: true });
+    expect(derived.journal.getVersion()).toBe(5);
   });
 });

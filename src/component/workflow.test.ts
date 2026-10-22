@@ -7,6 +7,7 @@ import type { Id } from "./_generated/dataModel.js";
 import { internalMutation } from "./_generated/server.js";
 import { v } from "convex/values";
 import { enqueueWorkflow, getWorkpool, handlerOnComplete } from "./pool.js";
+import { WorkflowManager, type WorkflowComponent } from "../client/index.js";
 
 describe("workflow", () => {
   beforeEach(async () => {
@@ -90,6 +91,59 @@ describe("workflow", () => {
     expect(workflow.workflow.args).toEqual({ location: "San Francisco" });
     expect(workflow.workflow.runResult).toBeUndefined();
     expect(workflow.inProgress).toHaveLength(0);
+  });
+
+  test("create stores the definition version", async () => {
+    const t = initConvexTest();
+    const id = await t.mutation(api.workflow.create, {
+      workflowName: "test",
+      workflowHandle: "function://;workflow.test:noop",
+      workflowArgs: {},
+      startAsync: true,
+      version: 2,
+    });
+    const { workflow } = await t.query(api.workflow.getStatus, {
+      workflowId: id,
+    });
+    expect(workflow.version).toBe(2);
+  });
+
+  test("startSteps records the step version", async () => {
+    const t = initConvexTest();
+    const id = await t.mutation(api.workflow.create, {
+      workflowName: "test",
+      workflowHandle: "function://;workflow.test:noop",
+      workflowArgs: {},
+      startAsync: true,
+    });
+    await t.mutation(api.journal.startSteps, {
+      workflowId: id,
+      generationNumber: 0,
+      steps: [
+        {
+          step: {
+            kind: "function" as const,
+            functionType: "mutation" as const,
+            handle: "function://;workflow.test:noop",
+            name: "step1",
+            inProgress: false,
+            args: {},
+            argsSize: 2,
+            runResult: { kind: "success" as const, returnValue: null },
+            startedAt: Date.now(),
+            completedAt: Date.now(),
+            version: 2,
+          },
+        },
+      ],
+    });
+    const steps = await t.query(api.workflow.listSteps, {
+      workflowId: id,
+      order: "asc",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    expect(steps.page).toHaveLength(1);
+    expect(steps.page[0].version).toBe(2);
   });
 
   test("can cancel a workflow", async () => {
@@ -447,6 +501,57 @@ describe("workflow", () => {
     });
   });
 
+  test("nested workflow starts reuse the shared parallelism configuration", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.mutation(api.workflow.create, {
+      workflowName: "parent-workflow",
+      workflowHandle: "function://;workflow.test:noop",
+      workflowArgs: {},
+      maxParallelism: 2,
+      createOnly: true,
+    });
+
+    const entries = await t.mutation(api.journal.startSteps, {
+      workflowId,
+      generationNumber: 0,
+      steps: [
+        {
+          step: {
+            kind: "workflow",
+            name: "nested-workflow",
+            handle: "function://;workflow.test:nestedWorkflow",
+            inProgress: true,
+            argsSize: 0,
+            args: {},
+            startedAt: Date.now(),
+          },
+        },
+      ],
+    });
+    const step = entries[0].step;
+    if (step.kind !== "workflow" || !step.workflowId) {
+      throw new Error("Missing child workflow");
+    }
+    const child = await t.query(api.workflow.getStatus, {
+      workflowId: step.workflowId,
+    });
+    expect(child.workflow.runResult).toBeUndefined();
+    expect(child.inProgress).toHaveLength(0);
+    const config = await t.run((ctx) => ctx.db.query("config").unique());
+    expect(config?.maxParallelism).toBe(2);
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const completed = await t.query(api.workflow.getStatus, {
+      workflowId: step.workflowId,
+    });
+    expect(completed.workflow.runResult).toEqual({
+      kind: "success",
+      returnValue: null,
+    });
+    const finalConfig = await t.run((ctx) => ctx.db.query("config").unique());
+    expect(finalConfig?.maxParallelism).toBe(2);
+  });
+
   test("cleanup enqueues cleanup for nested workflows", async () => {
     const t = initConvexTest();
 
@@ -468,7 +573,7 @@ describe("workflow", () => {
           step: {
             kind: "workflow" as const,
             name: "nested-workflow-step",
-            handle: "function://;workflow.test:noop",
+            handle: "function://;workflow.test:nestedWorkflow",
             inProgress: true,
             argsSize: 0,
             args: { location: "New York" },
@@ -546,24 +651,26 @@ describe("workflow", () => {
       startAsync: true,
     });
 
-    // Create a workflow step without workflowId (not yet started nested workflow) using startSteps
-    await t.mutation(api.journal.startSteps, {
-      workflowId,
-      generationNumber: 0,
-      steps: [
-        {
-          step: {
-            kind: "workflow" as const,
-            name: "pending-nested-workflow",
-            handle: "function://;workflow.test:noop",
-            inProgress: true,
-            argsSize: 0,
-            args: { location: "Boston" },
-            startedAt: Date.now(),
-          },
+    // Seed the pending step directly: startSteps always starts the child now.
+    const stepId = await t.run((ctx) =>
+      ctx.db.insert("steps", {
+        workflowId,
+        stepNumber: 0,
+        step: {
+          kind: "workflow",
+          name: "pending-nested-workflow",
+          handle: "function://;workflow.test:noop",
+          inProgress: true,
+          argsSize: 0,
+          args: { location: "Boston" },
+          startedAt: Date.now(),
         },
-      ],
-    });
+      }),
+    );
+
+    const entry = await t.run((ctx) => ctx.db.get("steps", stepId));
+    expect(entry?.step).toMatchObject({ kind: "workflow" });
+    expect(entry?.step).not.toHaveProperty("workflowId");
 
     // Cancel the workflow
     await t.mutation(api.workflow.cancel, { workflowId });
@@ -572,10 +679,11 @@ describe("workflow", () => {
     const cleaned = await t.mutation(api.workflow.cleanup, { workflowId });
     expect(cleaned).toBe(true);
 
-    // Verify the workflow is deleted
+    // Verify the workflow and pending step are deleted
     await t.run(async (ctx) => {
       const workflow = await ctx.db.get("workflows", workflowId);
       expect(workflow).toBeNull();
+      expect(await ctx.db.get("steps", stepId)).toBeNull();
     });
   });
 
@@ -712,7 +820,7 @@ describe("workflow", () => {
           step: {
             kind: "workflow" as const,
             name: "workflow-step",
-            handle: "function://;workflow.test:noop",
+            handle: "function://;workflow.test:nestedWorkflow",
             inProgress: true,
             argsSize: 0,
             args: { location: "New York" },
@@ -782,3 +890,9 @@ export const failingHandler = internalMutation({
     throw new Error("handler failed");
   },
 });
+
+export const nestedWorkflow = new WorkflowManager(
+  api as unknown as WorkflowComponent,
+)
+  .define({ args: { location: v.optional(v.string()) }, returns: v.null() })
+  .handler(async () => null);
