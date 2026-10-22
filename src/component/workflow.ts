@@ -16,7 +16,7 @@ import {
 import { type Logger, logLevel } from "./logging.js";
 import { getWorkflow } from "./model.js";
 import { getWorkpool } from "./pool.js";
-import schema, {
+import {
   journalDocument,
   vOnComplete,
   workflowDocument,
@@ -37,7 +37,6 @@ import {
 import { api, internal } from "./_generated/api.js";
 import { formatErrorWithStack } from "../shared.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
-import { paginator } from "convex-helpers/server/pagination";
 
 const createArgs = v.object({
   workflowName: v.string(),
@@ -191,7 +190,7 @@ export const list = query({
   },
   returns: vPaginationResult(vPublicWorkflow),
   handler: async (ctx, args) => {
-    const result = await paginator(ctx.db, schema)
+    const result = await ctx.db
       .query("workflows")
       .order(args.order)
       .paginate(args.paginationOpts);
@@ -210,7 +209,7 @@ export const listByName = query({
   },
   returns: vPaginationResult(vPublicWorkflow),
   handler: async (ctx, args) => {
-    const result = await paginator(ctx.db, schema)
+    const result = await ctx.db
       .query("workflows")
       .withIndex("name", (q) => q.eq("name", args.name))
       .order(args.order)
@@ -230,7 +229,7 @@ export const listSteps = query({
   },
   returns: vPaginationResult(vWorkflowStep),
   handler: async (ctx, args) => {
-    const result = await paginator(ctx.db, schema)
+    const result = await ctx.db
       .query("steps")
       .withIndex("workflow", (q) => q.eq("workflowId", args.workflowId))
       .order(args.order)
