@@ -1,0 +1,109 @@
+---
+title: "Introduction to Workflow"
+sidebar_label: "Introduction"
+sidebar_position: 100
+description: "How to work with the Convex Workflow component for durable function execution"
+---
+
+# Convex Durable Workflows
+
+The Workflow component allows you to write **durable functions**: code that
+orchestrates potentially-long-lived operations reliably, even in the face of
+server restarts.
+
+It can **pause** indefinitely while it waits for an asynchronous **event** or
+**sleep** for an arbitrary amount of time, without consuming any resources in
+the interim.
+
+Step execution can be **determined dynamically** with branching, loops,
+try/catch and more, all via regular code. Local variables, for-loops, console
+logging, etc. work as you'd expect, even though under the hood the function will
+be suspended and re-hydrated between steps.
+
+Steps are regular Convex queries, mutations, or actions, and can run
+**sequentially or in parallel** (e.g. `Promise.all`), using output from previous
+steps or local variables. The overall workflow and each step has type-safe and
+runtime-validated **arguments** and **return value**.
+
+Workflows can be canceled and **restarted** from an arbitrary step, allowing you
+to recover failed workflows after third party outages or fixing your code.
+
+The **status** can be observed by many users simultaneously via regular
+**reactive-by-default** Convex queries, and the history of each step's execution
+is likewise live-updating.
+
+**Retry behavior** for each action step is configurable, mutations have
+**exactly-once** execution (ignoring rollbacks due to database conflicts, which
+are automatically retried), and the overall workflow is guaranteed to run to
+completion, with exactly-once execution of an `onComplete` handler.
+
+Uses a Workpool under the hood to enable **parallelism limits** for steps, to
+avoid spikes of asynchronous work consuming too many resources.
+
+## Example
+
+```ts
+import { WorkflowManager } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+
+export const workflow = new WorkflowManager(components.workflow);
+
+export const userOnboarding = workflow
+  .define({
+    args: { userId: v.id("users") },
+  })
+  .handler(async (step, args): Promise<void> => {
+    let result = await step.runAction(
+      internal.llm.generateCustomContent,
+      { userId: args.userId },
+      // Retry this on transient errors with the default retry policy.
+      { retry: true },
+    );
+    while (result.requiresRefinement) {
+      // Run a whole workflow as a single step.
+      result = await step.runWorkflow(internal.llm.refineContentWorkflow, {
+        userId: args.userId,
+        currentResult: result,
+      });
+    }
+    const email = await step.runMutation(
+      internal.emails.sendWelcomeEmail,
+      { userId: args.userId, content: result.content },
+      // Optimization: run the mutation synchronously from this transaction.
+      { inline: true },
+    );
+
+    if (email.status === "needsVerification") {
+      // Waits until verification is completed asynchronously.
+      await step.awaitEvent({ name: "emailHasBeenVerified" });
+    }
+
+    // Wait 3 days before starting follow-ups.
+    const DAY = 24 * 60 * 60 * 1000;
+    await step.sleep(3 * DAY);
+
+    for (let i = 0; i < 3; i++) {
+      const sendTime = await getNextBestEmailTime(step, args.userId);
+      const status = await step.runMutation(
+        internal.emails.sendFollowUpEmailMaybe,
+        { userId: args.userId },
+        // Waits until this time to run this step.
+        { runAt: sendTime },
+      );
+      if (!status.ok) break;
+    }
+  });
+```
+
+## How it works
+
+The workflow tracks each `step` as it goes, executing steps asynchronously, and
+resuming the workflow's handler where it left off when the step completes. If a
+step fails, it will either retry based on the configured policy, or throw a
+catch-able exception in the workflow handler, allowing graceful recovery.
+
+While steps are executing, the workflow handler is not running. When it is time
+to run the next step, it re-executes the code, deterministically replaying the
+history until it finds the next step. The workflow itself is also run via the
+Workpool, so exceptions thrown within the workflow will get delivered to the
+`onComplete` handler.

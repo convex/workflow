@@ -1,0 +1,70 @@
+---
+title: "Inline Queries & Mutations"
+sidebar_label: "Inline Steps"
+sidebar_position: 750
+description: "Run lightweight queries and mutations inline within the workflow transaction"
+---
+
+# Inline Queries & Mutations
+
+By default, every `step.runQuery()` and `step.runMutation()` call is dispatched
+through the workpool, which runs the function in an independent transaction. You
+can opt in to running a query or mutation **inline**, sharing the workflow's
+transaction.
+
+## Using inline mode
+
+Pass `{ inline: true }` to run a query or mutation in the workflow's own
+transaction:
+
+```ts
+export const myWorkflow = workflow
+  .define({
+    args: { userId: v.id("users") },
+  })
+  .handler(async (step, args): Promise<string> => {
+    const user = await step.runQuery(
+      internal.example.getUser,
+      { userId: args.userId },
+      { inline: true },
+    );
+    const updated = await step.runMutation(
+      internal.example.updateUser,
+      { userId: args.userId, name: user.name + "!" },
+      { inline: true },
+    );
+    return updated;
+  });
+```
+
+## When to use inline steps
+
+Inline steps are a good fit when:
+
+- The query or mutation is **lightweight** — reads or writes a small amount of
+  data.
+- You want to **reduce latency** — inline steps avoid the overhead of
+  dispatching through the workpool.
+- You need **transactional consistency** — inline mutations share the workflow's
+  transaction, so their writes are atomic with the workflow's journal update.
+
+## When not to use inline steps
+
+Leave steps running through the workpool (the default) when:
+
+- The step **reads or writes a large amount of data** — inline functions share
+  the workflow's
+  [transaction limits](https://docs.convex.dev/production/state/limits#transactions),
+  so a heavy step could push the transaction over its budget.
+- You want **independent retry behavior** — workpool-dispatched steps can be
+  retried independently of the workflow handler.
+
+## Transaction limits
+
+Because inline functions share the workflow's transaction, their reads and
+writes count toward the same transaction limits. The combined work of all inline
+steps plus the workflow journal must fit within Convex's mutation limits.
+
+If you're unsure whether a step is lightweight enough for inline execution,
+start with the default (workpool-dispatched) and switch to inline only if you
+need the performance benefit.

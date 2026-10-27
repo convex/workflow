@@ -1,0 +1,95 @@
+---
+title: "Rate Limiting"
+sidebar_label: "Rate Limiting"
+sidebar_position: 650
+description: "Control workflow throughput with parallelism limits and batching strategies"
+---
+
+# Rate Limiting
+
+The Workflow component doesn't have a built-in rate limiter, but you can
+effectively control throughput using parallelism limits, batching, and
+scheduling.
+
+## Throttling with maxParallelism
+
+The simplest way to rate-limit workflows is to set a low `maxParallelism`
+value. This caps how many steps can execute concurrently:
+
+```ts
+const workflow = new WorkflowManager(components.workflow, {
+  workpoolOptions: {
+    maxParallelism: 5, // At most 5 concurrent step executions
+  },
+});
+```
+
+When the limit is reached, additional steps queue up and execute as slots become
+available. This naturally throttles your throughput to external APIs.
+
+## Dynamic throttling
+
+Adjust the limit at runtime without redeploying:
+
+```sh
+npx convex run --component workflow utils:updateConfig '{ maxParallelism: 2 }'
+```
+
+This is useful for responding to rate limit errors from third-party APIs — you
+can reduce parallelism during an incident and increase it later.
+
+## Batching for high-volume work
+
+If you need to process a large number of items, use batching instead of
+creating one workflow per item. Each workflow step consumes a parallelism slot,
+so processing 1,000 items as individual workflows would quickly exhaust your
+capacity.
+
+Instead, design workflows that operate on batches:
+
+```ts
+export const scrapeLinks = workflow
+  .define({
+    args: { links: v.array(v.string()) },
+  })
+  .handler(async (step, args): Promise<void> => {
+    // Process a batch of links in a single action step
+    await step.runAction(internal.scraper.scrapeBatch, {
+      links: args.links,
+    });
+  });
+```
+
+This uses one parallelism slot to process many items, leaving capacity for
+other workflows.
+
+## Scheduling delays for pacing
+
+Use `runAfter` or `runAt` to space out step execution over time:
+
+```ts
+export const rateLimitedWorkflow = workflow
+  .define({
+    args: { items: v.array(v.string()) },
+  })
+  .handler(async (step, args): Promise<void> => {
+    for (let i = 0; i < args.items.length; i++) {
+      await step.runAction(internal.api.processItem, {
+        item: args.items[i],
+      }, {
+        // Space out calls by 1 second each
+        runAfter: i * 1000,
+      });
+    }
+  });
+```
+
+## Combining strategies
+
+For production systems calling rate-limited APIs, combine these approaches:
+
+1. **Set `maxParallelism`** to stay under the API's concurrent request limit.
+2. **Batch items** within each workflow to reduce the number of steps.
+3. **Use `runAfter`** to space out requests if needed.
+4. **Monitor and adjust** parallelism dynamically via the CLI when you see
+   rate limit errors.

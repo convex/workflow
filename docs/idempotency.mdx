@@ -1,0 +1,119 @@
+---
+title: "Idempotency & Retry Behavior"
+sidebar_label: "Idempotency & Retries"
+sidebar_position: 500
+description: "Configure retry policies and understand exactly-once execution guarantees"
+---
+
+# Idempotency & Retry Behavior
+
+## Execution guarantees by step type
+
+The Workflow component provides different guarantees depending on the step type:
+
+- **Mutations** have **exactly-once** execution. If a database conflict causes a
+  rollback, Convex automatically retries the transaction. A mutation will never
+  partially commit or commit twice.
+- **Queries** are read-only and inherently idempotent — safe to retry any number
+  of times.
+- **Actions** may execute more than once if retries are enabled. If an action
+  calls an external API, you should ensure the API call is idempotent (e.g. by
+  using idempotency keys) or disable retries for that step.
+- **The workflow handler** itself is a mutation that replays the journal. If it
+  fails (e.g. due to a system error), it is retried automatically by Convex.
+
+## Configuring retry behavior
+
+By default, **actions are not retried**. If an action throws and the exception
+isn't caught in the workflow, the workflow fails and calls `onComplete` with an
+error.
+
+### Default retries on the WorkflowManager
+
+Set a default retry policy for all workflows:
+
+```ts
+const workflow = new WorkflowManager(components.workflow, {
+  workpoolOptions: {
+    defaultRetryBehavior: {
+      maxAttempts: 3,
+      initialBackoffMs: 100,
+      base: 2,
+    },
+    retryActionsByDefault: true, // default is false
+  },
+});
+```
+
+### Per-step retry options
+
+Override retry behavior on individual steps:
+
+```ts
+export const exampleWorkflow = workflow
+  .define({
+    args: { name: v.string() },
+  })
+  .handler(async (step, args): Promise<void> => {
+    // Uses default retry behavior & retryActionsByDefault
+    await step.runAction(internal.example.myAction, args);
+
+    // Retries with the default behavior
+    await step.runAction(internal.example.myAction, args, { retry: true });
+
+    // No retries
+    await step.runAction(internal.example.myAction, args, { retry: false });
+
+    // Custom retry behavior
+    await step.runAction(internal.example.myAction, args, {
+      retry: { maxAttempts: 2, initialBackoffMs: 100, base: 2 },
+    });
+  });
+```
+
+### Per-workflow retry options
+
+Override the manager-level defaults for a specific workflow:
+
+```ts
+export const exampleWorkflow = workflow
+  .define({
+    args: { name: v.string() },
+    // Overrides the WorkflowManager defaults for this workflow
+    workpoolOptions: {
+      defaultRetryBehavior: {
+        maxAttempts: 5,
+        initialBackoffMs: 500,
+        base: 2,
+      },
+    },
+  })
+  .handler(async (step, args): Promise<void> => {
+    await step.runAction(internal.example.myAction, args);
+  });
+```
+
+## Retry mechanics
+
+Retries use **exponential backoff with jitter**:
+
+- The delay between attempts increases exponentially: `initialBackoffMs * base^attempt`
+- Jitter is added to prevent thundering herd problems
+- After `maxAttempts` failures, the step throws and the error propagates to the
+  workflow handler
+
+## Designing for idempotency
+
+When retries are enabled for actions, keep these patterns in mind:
+
+- **Use idempotency keys** when calling external APIs. Many payment processors,
+  email services, and other APIs support passing an idempotency key to prevent
+  duplicate operations.
+- **Check-before-write** in your step functions. For example, check if a record
+  already exists before creating it.
+- **Prefer mutations for state changes**. Since mutations have exactly-once
+  guarantees, use them for database writes and reserve actions for external API
+  calls.
+- **Disable retries for non-idempotent actions**. If an action sends an SMS or
+  charges a credit card and doesn't support idempotency keys, set
+  `{ retry: false }` to get at-most-once semantics.
