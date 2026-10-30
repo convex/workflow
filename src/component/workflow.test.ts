@@ -5,6 +5,7 @@ import { api } from "./_generated/api.js";
 import { initConvexTest } from "./setup.test.js";
 import type { Id } from "./_generated/dataModel.js";
 import { internalMutation } from "./_generated/server.js";
+import type { FunctionHandle_future } from "convex/server";
 import { v } from "convex/values";
 import { enqueueWorkflow, getWorkpool, handlerOnComplete } from "./pool.js";
 
@@ -36,7 +37,8 @@ describe("workflow", () => {
       );
       const id = await t.mutation(api.workflow.create, {
         workflowName: "callback exclusion",
-        workflowHandle: `function://;workflow.test:${kind === "success" ? "noop" : "failingHandler"}`,
+        workflowHandle:
+          `function://;workflow.test:${kind === "success" ? "noop" : "failingHandler"}` as FunctionHandle_future<any>,
         workflowArgs: {},
         startAsync: route === "start",
         createOnly: route !== "start",
@@ -81,7 +83,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -96,7 +99,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -111,7 +115,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -139,7 +144,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -152,7 +158,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -165,7 +172,8 @@ describe("workflow", () => {
           step: {
             kind: "function" as const,
             functionType: "mutation" as const,
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             name: `step${i}`,
             inProgress: false,
             argsSize: 0,
@@ -207,7 +215,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -221,7 +230,8 @@ describe("workflow", () => {
           step: {
             kind: "function" as const,
             functionType: "action" as const,
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             name: names[i],
             inProgress: false,
             argsSize: 0,
@@ -261,7 +271,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -283,7 +294,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -305,7 +317,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -360,7 +373,8 @@ describe("workflow", () => {
     const t = initConvexTest();
     const id = await t.mutation(api.workflow.create, {
       workflowName: "test",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -383,7 +397,8 @@ describe("workflow", () => {
     // Create a workflow
     const workflowId = await t.mutation(api.workflow.create, {
       workflowName: "test-with-event",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -453,7 +468,8 @@ describe("workflow", () => {
     // Create a parent workflow
     const parentWorkflowId = await t.mutation(api.workflow.create, {
       workflowName: "parent-workflow",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -468,7 +484,8 @@ describe("workflow", () => {
           step: {
             kind: "workflow" as const,
             name: "nested-workflow-step",
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             inProgress: true,
             argsSize: 0,
             args: { location: "New York" },
@@ -541,7 +558,8 @@ describe("workflow", () => {
     // Create a workflow
     const workflowId = await t.mutation(api.workflow.create, {
       workflowName: "test-workflow",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -555,7 +573,8 @@ describe("workflow", () => {
           step: {
             kind: "workflow" as const,
             name: "pending-nested-workflow",
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             inProgress: true,
             argsSize: 0,
             args: { location: "Boston" },
@@ -585,7 +604,8 @@ describe("workflow", () => {
     // Create a workflow
     const workflowId = await t.mutation(api.workflow.create, {
       workflowName: "test-workflow",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -627,7 +647,8 @@ describe("workflow", () => {
 
     const workflowId = await t.mutation(api.workflow.create, {
       workflowName: "test-many-steps",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: {},
       startAsync: true,
     });
@@ -643,7 +664,8 @@ describe("workflow", () => {
           step: {
             kind: "function" as const,
             functionType: "mutation" as const,
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             name: `step${i}`,
             inProgress: false,
             argsSize: 0,
@@ -681,7 +703,8 @@ describe("workflow", () => {
     // Create parent workflow
     const parentWorkflowId = await t.mutation(api.workflow.create, {
       workflowName: "parent-workflow",
-      workflowHandle: "function://;workflow.test:noop",
+      workflowHandle:
+        "function://;workflow.test:noop" as FunctionHandle_future<any>,
       workflowArgs: { location: "San Francisco" },
       startAsync: true,
     });
@@ -712,7 +735,8 @@ describe("workflow", () => {
           step: {
             kind: "workflow" as const,
             name: "workflow-step",
-            handle: "function://;workflow.test:noop",
+            handle:
+              "function://;workflow.test:noop" as FunctionHandle_future<any>,
             inProgress: true,
             argsSize: 0,
             args: { location: "New York" },

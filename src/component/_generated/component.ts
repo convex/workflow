@@ -73,7 +73,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   argsSize: number;
                   completedAt?: number;
                   functionType: "query" | "mutation" | "action";
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind?: "function";
                   name: string;
@@ -88,7 +92,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   args: any;
                   argsSize: number;
                   completedAt?: number;
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind: "workflow";
                   name: string;
@@ -139,14 +147,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             generationNumber: number;
             logLevel?: any;
             name?: string;
-            onComplete?: { context?: any; fnHandle: string };
+            onComplete?: {
+              context?: any;
+              fnHandle: import("convex/server").FunctionHandle_future<
+                "mutation",
+                {
+                  context: any;
+                  result:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  workflowId: string;
+                },
+                any
+              >;
+            };
             runResult?:
               | { kind: "success"; returnValue: any }
               | { error: string; kind: "failed" }
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
-            workflowHandle: string;
+            workflowHandle: import("convex/server").FunctionHandle_future<
+              "mutation",
+              { generationNumber: number; workflowId: string },
+              any
+            >;
           };
         },
         Name
@@ -167,7 +193,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   argsSize: number;
                   completedAt?: number;
                   functionType: "query" | "mutation" | "action";
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind?: "function";
                   name: string;
@@ -182,7 +212,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   args: any;
                   argsSize: number;
                   completedAt?: number;
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind: "workflow";
                   name: string;
@@ -243,7 +277,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 argsSize: number;
                 completedAt?: number;
                 functionType: "query" | "mutation" | "action";
-                handle: string;
+                handle: import("convex/server").FunctionHandle_future<
+                  any,
+                  any,
+                  any
+                >;
                 inProgress: boolean;
                 kind?: "function";
                 name: string;
@@ -258,7 +296,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 args: any;
                 argsSize: number;
                 completedAt?: number;
-                handle: string;
+                handle: import("convex/server").FunctionHandle_future<
+                  any,
+                  any,
+                  any
+                >;
                 inProgress: boolean;
                 kind: "workflow";
                 name: string;
@@ -338,10 +380,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           createOnly?: boolean;
           maxParallelism?: number;
-          onComplete?: { context?: any; fnHandle: string };
+          onComplete?: {
+            context?: any;
+            fnHandle: import("convex/server").FunctionHandle_future<
+              "mutation",
+              {
+                context: any;
+                result:
+                  | { kind: "success"; returnValue: any }
+                  | { error: string; kind: "failed" }
+                  | { kind: "canceled" };
+                workflowId: string;
+              },
+              any
+            >;
+          };
           startAsync?: boolean;
           workflowArgs: any;
-          workflowHandle: string;
+          workflowHandle: import("convex/server").FunctionHandle_future<
+            "mutation",
+            { generationNumber: number; workflowId: string },
+            any
+          >;
           workflowName: string;
         },
         string,
@@ -361,7 +421,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   argsSize: number;
                   completedAt?: number;
                   functionType: "query" | "mutation" | "action";
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind?: "function";
                   name: string;
@@ -376,7 +440,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   args: any;
                   argsSize: number;
                   completedAt?: number;
-                  handle: string;
+                  handle: import("convex/server").FunctionHandle_future<
+                    any,
+                    any,
+                    any
+                  >;
                   inProgress: boolean;
                   kind: "workflow";
                   name: string;
@@ -426,14 +494,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             generationNumber: number;
             logLevel?: any;
             name?: string;
-            onComplete?: { context?: any; fnHandle: string };
+            onComplete?: {
+              context?: any;
+              fnHandle: import("convex/server").FunctionHandle_future<
+                "mutation",
+                {
+                  context: any;
+                  result:
+                    | { kind: "success"; returnValue: any }
+                    | { error: string; kind: "failed" }
+                    | { kind: "canceled" };
+                  workflowId: string;
+                },
+                any
+              >;
+            };
             runResult?:
               | { kind: "success"; returnValue: any }
               | { error: string; kind: "failed" }
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
-            workflowHandle: string;
+            workflowHandle: import("convex/server").FunctionHandle_future<
+              "mutation",
+              { generationNumber: number; workflowId: string },
+              any
+            >;
           };
         },
         Name
