@@ -27,8 +27,7 @@ export type RunResult<Returns = unknown> =
  * the handler finishes, carrying its validated result for the workflow driver.
  */
 export type WorkflowMutationResult<Returns = unknown> =
-  | WorkflowId
-  | { kind: "complete"; runResult: RunResult<Returns> };
+  WorkflowId | { kind: "complete"; runResult: RunResult<Returns> };
 
 type ReturnValueFromWorkflowMutation<Result> = Result extends {
   kind: "complete";

@@ -456,17 +456,19 @@ can change between deploys, you can opt that step out of argument validation
 with `unstableArgs` (the step name and kind are still validated):
 
 ```ts
-await step.runMutation(internal.example.recordError, { message }, {
-  unstableArgs: true,
-});
+await step.runMutation(
+  internal.example.recordError,
+  { message },
+  { unstableArgs: true },
+);
 ```
 
-Sometimes a library makes the step call on your behalf, so there's no call
-site at which to pass options. For example, another component's client may
-call `ctx.runMutation` internally with its own config embedded in the
-arguments, which would fail replays of in-flight workflows when that config
-changes. For this, `step.withOptions(...)` derives a new step context that
-applies default options to every step run through it:
+Sometimes a library makes the step call on your behalf, so there's no call site
+at which to pass options. For example, another component's client may call
+`ctx.runMutation` internally with its own config embedded in the arguments,
+which would fail replays of in-flight workflows when that config changes. For
+this, `step.withOptions(...)` derives a new step context that applies default
+options to every step run through it:
 
 ```ts
 const pool = new Workpool(components.scrapePool, { maxParallelism: 10 });
@@ -485,8 +487,8 @@ export const scrapeAll = workflow.define({
 ```
 
 `withOptions` supports `unstableArgs` and a default `retry` behavior for
-actions. Per-call options always take precedence, the original `step` context
-is unaffected, and calls can be chained (later defaults win).
+actions. Per-call options always take precedence, the original `step` context is
+unaffected, and calls can be chained (later defaults win).
 
 ### Checking a workflow's status
 
@@ -854,8 +856,8 @@ Here are a few limitations to keep in mind:
 - If the implementation of the workflow meaningfully changes (steps added,
   removed, or reordered) then it will fail with a determinism violation. The
   implementation should stay stable for the lifetime of active workflows. See
-  [this issue](https://github.com/convex/workflow/issues/35) for ideas on
-  how to make this better.
+  [this issue](https://github.com/convex/workflow/issues/35) for ideas on how to
+  make this better.
 
 Open a [GitHub issue](https://github.com/convex/workflow/issues) with any
 feedback or bugs you find.

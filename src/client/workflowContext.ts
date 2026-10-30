@@ -152,8 +152,7 @@ export type WorkflowCtx = {
    */
   awaitEvent<T = unknown, Name extends string = string>(
     event: (
-      | { name: Name; id?: EventId<Name> }
-      | { name?: Name; id: EventId<Name> }
+      { name: Name; id?: EventId<Name> } | { name?: Name; id: EventId<Name> }
     ) & {
       validator?: Validator<T, any, any>;
     },
