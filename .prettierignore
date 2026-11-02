@@ -1,0 +1,6 @@
+.context/
+.convex/
+dist/
+package-lock.json
+# Generated documentation is owned by the Convex CLI.
+example/convex/_generated/ai/

@@ -9,6 +9,7 @@ export default [
   {
     ignores: [
       "dist/**",
+      ".context/**",
       "eslint.config.js",
       "vitest.config.ts",
       "**/_generated/",

@@ -3,38 +3,64 @@
 ## Running locally
 
 ```sh
-npm i
+npm ci
 npm run dev
 ```
 
 ## Testing
 
 ```sh
-npm run clean
 npm run build
-npm run typecheck
-npm run lint
-npm run test
+npm run check
+npm run test:e2e
 ```
 
-## Deploying
-
-### Building a one-off package
+When component APIs change, regenerate and commit the generated files:
 
 ```sh
-npm run clean
+npm run build:codegen
+```
+
+## Releases
+
+Include a changeset with changes that need a release:
+
+```sh
+npx changeset
+```
+
+To prepare a release from an up-to-date checkout:
+
+```sh
 npm ci
-npm pack
+npm run build
+npm run check
+npx changeset version
 ```
 
-### Deploying a new version
+Review and commit the version, changelog, and consumed changesets, then merge
+through a checked PR. A push to main stages the latest version-bump commit in
+that push.
+
+Review the staged package on npm's **Staged Packages** page and approve it, or
+run:
 
 ```sh
-npm run release
+npm stage approve <stage-id>
 ```
 
-or for alpha release:
+For a branch prerelease, prepare a prerelease version with Changesets and
+dispatch **Release** from the Actions page on that branch. The first prerelease
+identifier selects the npm channel, such as `alpha`. Stable releases require
+main.
 
-```sh
-npm run alpha
-```
+For recovery, dispatch **Release** on the appropriate ref with the 40-character
+SHA of a version-bump commit reachable from that ref.
+
+| Failure                                         | Recovery                                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Transient failure before successful staging     | Retry failed jobs for the same commit.                                                 |
+| Staging succeeded; tagging failed               | Retry only failed jobs.                                                                |
+| Upload outcome uncertain                        | Inspect npm before retrying; recover the tag only after verifying the staged artifact. |
+| Fix requires changing the release commit's code | Prepare a new version-bump commit.                                                     |
+| Candidate rejected after staging                | Leave its tag and prepare a new version.                                               |
