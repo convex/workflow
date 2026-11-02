@@ -61,8 +61,9 @@ jobs:
           expected=$(jq -r .name package.json)
           name=$(git show "$source:package.json" | jq -r .name)
           [[ "$name" == "$expected" ]] || { echo 'Unexpected package name' >&2; exit 1; }
-          export VERSION=$(git show "$source:package.json" | jq -r .version)
-          export PREVIOUS_VERSION=$(git show "$source^1:package.json" | jq -r .version)
+          VERSION=$(git show "$source:package.json" | jq -r .version)
+          PREVIOUS_VERSION=$(git show "$source^1:package.json" | jq -r .version)
+          export VERSION PREVIOUS_VERSION
           node --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process';
           import { appendFileSync } from 'node:fs';
@@ -82,9 +83,11 @@ jobs:
           if git show-ref --verify --quiet "refs/tags/$tag"; then
             [[ "$(git rev-parse "$tag^{commit}")" == "$source" ]] || { echo "$tag points elsewhere" >&2; exit 1; }
           fi
-          echo "sha=$source" >> "$GITHUB_OUTPUT"
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "sha=$source"
+            echo "name=$name"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     needs: plan
@@ -171,7 +174,7 @@ jobs:
           echo "$EXPECTED_SHA256  $TARBALL" | sha256sum -c -
           {
             echo "$PACKAGE_NAME@$VERSION — source $SOURCE_SHA — npm channel $CHANNEL"
-            echo 'Review on npm’s Staged Packages page, then approve with 2FA or `npm stage approve <stage-id>`.'
+            echo "Review on npm's Staged Packages page, then approve with 2FA or npm stage approve <stage-id>."
           } >> "$GITHUB_STEP_SUMMARY"
           # npm reads GITHUB_SHA for provenance; checkout alone does not change it.
           GITHUB_SHA="$SOURCE_SHA" npm stage publish "$TARBALL" \
