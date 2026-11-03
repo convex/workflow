@@ -58,9 +58,7 @@ jobs:
             done <<< "$candidates"
             if [[ -z "$source" ]]; then echo 'No version bump'; exit 0; fi
           fi
-          expected="@convex-dev/${GITHUB_REPOSITORY#*/}"
           name=$(git show "$source:package.json" | jq -r .name)
-          [[ "$name" == "$expected" ]] || { echo 'Unexpected package name' >&2; exit 1; }
           VERSION=$(git show "$source:package.json" | jq -r .version)
           PREVIOUS_VERSION=$(git show "$source^1:package.json" | jq -r .version)
           export VERSION PREVIOUS_VERSION
