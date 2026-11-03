@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
@@ -58,7 +58,7 @@ jobs:
             done <<< "$candidates"
             if [[ -z "$source" ]]; then echo 'No version bump'; exit 0; fi
           fi
-          expected=$(jq -r .name package.json)
+          expected="@convex-dev/${GITHUB_REPOSITORY#*/}"
           name=$(git show "$source:package.json" | jq -r .name)
           [[ "$name" == "$expected" ]] || { echo 'Unexpected package name' >&2; exit 1; }
           VERSION=$(git show "$source:package.json" | jq -r .version)
@@ -104,7 +104,7 @@ jobs:
         with:
           ref: ${{ needs.plan.outputs.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
@@ -150,7 +150,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
