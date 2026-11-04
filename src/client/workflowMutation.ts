@@ -18,7 +18,7 @@ import {
 } from "convex/values";
 import { createLogger } from "../component/logging.js";
 import { type JournalEntry } from "../component/schema.js";
-import { formatErrorWithStack } from "../shared.js";
+import { failedResult, formatErrorWithStack } from "../shared.js";
 import { vWorkflowId, type OnCompleteArgs, type WorkflowId } from "../types.js";
 import { setupEnvironment } from "./environment.js";
 import type { WorkflowDefinition, WorkflowHandler } from "./index.js";
@@ -84,6 +84,7 @@ const vRunResult = (
     v.object({
       kind: v.literal("failed"),
       error: v.string(),
+      errorData: v.optional(v.any()),
     }),
     v.object({ kind: v.literal("canceled") }),
   );
@@ -276,9 +277,8 @@ export function workflowMutation<
               }
             }
           } catch (error) {
-            const message = formatErrorWithStack(error);
-            console.error(message);
-            runResult = { kind: "failed", error: message };
+            runResult = failedResult(error);
+            console.error(runResult.error);
           }
           return { type: "handlerDone", runResult };
         };

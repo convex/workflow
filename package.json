@@ -59,7 +59,7 @@
     }
   },
   "peerDependencies": {
-    "@convex-dev/workpool": "^0.4.4",
+    "@convex-dev/workpool": "^0.4.16",
     "convex": "^1.46.0",
     "convex-helpers": "^0.1.127"
   },
@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@convex-dev/eslint-plugin": "5.0.0",
-    "@convex-dev/workpool": "0.4.14",
+    "@convex-dev/workpool": "https://pkg.pr.new/@convex-dev/workpool@84427cb8b9aa26592070a6f7d7652714e93b2d58",
     "@edge-runtime/vm": "5.0.0",
     "@eslint/eslintrc": "3.3.7",
     "@eslint/js": "10.0.1",
