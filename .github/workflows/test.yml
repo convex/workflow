@@ -16,27 +16,61 @@ jobs:
     name: Test and lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Node setup
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          cache-dependency-path: package.json
-          node-version: "24.x"
+          node-version: "24.22.1"
           cache: "npm"
 
       - name: Install and build
         run: |
-          npm i
+          npm ci
           npm run build
+      - name: Validate release notes when the proposed merge changes the version
+        env:
+          BASE_SHA:
+            ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          version=$(jq -r .version package.json)
+          previous=$(git show "$BASE_SHA:package.json" | jq -r .version)
+          if [[ "$version" != "$previous" ]]; then
+            git update-ref refs/heads/main HEAD
+            npx changeset status --output "$RUNNER_TEMP/changesets.json"
+            jq -e '.changesets | length == 0' "$RUNNER_TEMP/changesets.json"
+            awk -v version="$version" '/^## / { active=($0 == "## " version); next } active && !/^#/ && /[[:alnum:]]/ { found=1 } END { exit !found }' CHANGELOG.md
+          fi
+      - name: Resolve Convex backend version
+        id: backend
+        run: |
+          cli_version=$(node -p 'require("convex/package.json").version')
+          version=$(curl -fsSL -H "Convex-Client: npm-cli-$cli_version" https://version.convex.dev/v1/local_backend_version | jq -er '.version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache Convex backend binary
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/convex/binaries/${{ steps.backend.outputs.version }}
+          key:
+            convex-backend-${{ runner.os }}-${{ runner.arch }}-${{
+            steps.backend.outputs.version }}
+      - name: Verify component codegen and run E2E tests
+        env:
+          CONVEX_AGENT_MODE: anonymous
+          CONVEX_DISABLE_TELEMETRY: "1"
+          BACKEND_VERSION: ${{ steps.backend.outputs.version }}
+        run: |
+          npm run test:e2e -- --local-backend-version "$BACKEND_VERSION"
+          git diff --exit-code -- src/component/_generated
+          test -z "$(git ls-files --others --exclude-standard src/component/_generated)"
       - name: Publish package for testing branch
         run: npx pkg-pr-new publish || echo "pkg-pr-new failed"
       - name: Test
-        run: |
-          npm run test
-          npm run typecheck
-          npm run lint
+        run: npm run check
