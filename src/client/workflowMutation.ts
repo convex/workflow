@@ -68,7 +68,7 @@ const vWorkflowArgs = v.union(
   v.object({
     args: v.any(),
     startAsync: v.optional(v.boolean()),
-    onComplete: v.optional(v.string()),
+    onComplete: v.optional(v.function({ fnType: "mutation" })),
     context: v.optional(v.any()),
   }),
 );
@@ -161,7 +161,7 @@ export function workflowMutation<
       // Direct call { args: {...}, onComplete?, context?, startAsync? }
       if ("args" in args) {
         const metadata = await ctx.meta.getFunctionMetadata();
-        const fn = makeFunctionReference(metadata.name);
+        const fn = makeFunctionReference<"mutation">(metadata.name);
         const onComplete =
           typeof args.onComplete === "string"
             ? { fnHandle: args.onComplete, context: args.context }

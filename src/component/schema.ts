@@ -2,16 +2,29 @@ import { vResultValidator, vWorkIdValidator } from "@convex-dev/workpool";
 import { deprecated, literals } from "convex-helpers/validators";
 import { defineSchema, defineTable } from "convex/server";
 import { type Infer, v } from "convex/values";
+import { vWorkflowId } from "../types.js";
 import { logLevel } from "./logging.js";
 
+export const vWorkflowHandle = v.function({
+  fnType: "mutation",
+  args: { workflowId: v.string(), generationNumber: v.number() },
+});
+
 export const vOnComplete = v.object({
-  fnHandle: v.string(), // mutation
+  fnHandle: v.function({
+    fnType: "mutation",
+    args: {
+      workflowId: vWorkflowId,
+      result: vResultValidator,
+      context: v.any(),
+    },
+  }),
   context: v.optional(v.any()),
 });
 
 const workflowObject = {
   name: v.optional(v.string()),
-  workflowHandle: v.string(),
+  workflowHandle: vWorkflowHandle,
   args: v.any(),
   onComplete: v.optional(vOnComplete),
   logLevel: deprecated,
@@ -45,13 +58,13 @@ export const step = v.union(
   v.object({
     kind: v.optional(v.literal("function")),
     functionType: literals("query", "mutation", "action"),
-    handle: v.string(),
+    handle: v.function(),
     workId: v.optional(vWorkIdValidator),
     ...stepCommonFields,
   }),
   v.object({
     kind: v.literal("workflow"),
-    handle: v.string(),
+    handle: v.function(),
     workflowId: v.optional(v.id("workflows")),
     ...stepCommonFields,
   }),

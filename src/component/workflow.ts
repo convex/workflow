@@ -19,13 +19,13 @@ import { getWorkpool } from "./pool.js";
 import {
   journalDocument,
   vOnComplete,
+  vWorkflowHandle,
   workflowDocument,
   type JournalEntry,
 } from "./schema.js";
 import { getDefaultLogger } from "./utils.js";
 import {
   type WorkflowId,
-  type OnCompleteArgs,
   type WorkflowStep,
   type EventId,
   vPaginationResult,
@@ -40,7 +40,7 @@ import type { Doc, Id } from "./_generated/dataModel.js";
 
 const createArgs = v.object({
   workflowName: v.string(),
-  workflowHandle: v.string(),
+  workflowHandle: vWorkflowHandle,
   workflowArgs: v.any(),
   maxParallelism: v.optional(v.number()),
   onComplete: v.optional(vOnComplete),
@@ -93,7 +93,7 @@ export async function createHandler(
     );
   } else if (!args.createOnly) {
     // If we can't start it, may as well not create it, eh? Fail fast...
-    await ctx.runMutation(args.workflowHandle as FunctionHandle<"mutation">, {
+    await ctx.runMutation(args.workflowHandle, {
       workflowId,
       generationNumber: 0,
     });
@@ -336,13 +336,10 @@ export async function restartHandler(
       },
     );
   } else {
-    await ctx.runMutation(
-      workflow.workflowHandle as FunctionHandle<"mutation">,
-      {
-        workflowId: args.workflowId,
-        generationNumber,
-      },
-    );
+    await ctx.runMutation(workflow.workflowHandle, {
+      workflowId: args.workflowId,
+      generationNumber,
+    });
   }
 }
 
@@ -427,17 +424,11 @@ export async function completeHandler(
   await ctx.db.replace("workflows", workflow._id, workflow);
   if (workflow.onComplete) {
     try {
-      await ctx.runMutation(
-        workflow.onComplete.fnHandle as FunctionHandle<
-          "mutation",
-          OnCompleteArgs
-        >,
-        {
-          workflowId: workflow._id as unknown as WorkflowId,
-          result: workflow.runResult,
-          context: workflow.onComplete.context,
-        },
-      );
+      await ctx.runMutation(workflow.onComplete.fnHandle, {
+        workflowId: workflow._id as unknown as WorkflowId,
+        result: workflow.runResult,
+        context: workflow.onComplete.context,
+      });
     } catch (error) {
       const message = formatErrorWithStack(error);
       console.error("Error calling onComplete", message);
