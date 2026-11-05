@@ -17,7 +17,7 @@ import type {
   TransactionLimits,
   WorkflowComponent,
 } from "./types.js";
-import { MAX_JOURNAL_SIZE, formatErrorWithStack } from "../shared.js";
+import { MAX_JOURNAL_SIZE, failedResult } from "../shared.js";
 import type { EventId, SchedulerOptions } from "../types.js";
 import { pick } from "convex-helpers";
 
@@ -190,7 +190,7 @@ export class StepExecutor {
                   );
             runResult = { kind: "success", returnValue: result ?? null };
           } catch (error: unknown) {
-            runResult = { kind: "failed", error: formatErrorWithStack(error) };
+            runResult = failedResult(error);
           }
         }
 

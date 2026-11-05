@@ -17,7 +17,7 @@ export type InferFromOptionalValidator<ReturnsValidator> = [
 
 export type RunResult<Returns = unknown> =
   | { kind: "success"; returnValue: Returns }
-  | { kind: "failed"; error: string }
+  | { kind: "failed"; error: string; errorData?: Value }
   | { kind: "canceled" };
 
 /**
