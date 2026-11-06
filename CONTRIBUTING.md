@@ -54,6 +54,10 @@ dispatch **Release** from the Actions page on that branch. The first prerelease
 identifier selects the npm channel, such as `alpha`. Stable releases require
 main.
 
+An already-staged prerelease can merge into main without staging it again, even
+if merging changes its commit SHA. Prepare a new version with Changesets when
+ready for another release.
+
 For recovery, dispatch **Release** on the appropriate ref with the 40-character
 SHA of a version-bump commit reachable from that ref.
 
