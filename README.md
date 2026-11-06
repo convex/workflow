@@ -840,7 +840,7 @@ Here are a few limitations to keep in mind:
 - Steps can only take in and return a total of _1 MB_ of data within a single
   workflow execution. If you run into journal size limits, you can work around
   this by storing results in the database or file storage from your step
-  functions and passing IDs around within the the workflow.
+  functions and passing IDs around within the the workflow. Oversized step results are stored in file storage when possible and can be read with `oversizedValues.read` for debugging.
 - The workflow body is internally a mutation, with each step's return value read
   from the database on each subsequent step. As a result, the limits for a
   mutation apply and limit the number and size of steps you can perform

@@ -22,7 +22,7 @@ import { getDefaultLogger } from "./utils.js";
 import { completeHandler } from "./workflow.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { vWorkflowId, type WorkflowId } from "../types.js";
-import { checkForOversizedResult } from "./oversizedValues.js";
+import { storeOversizedResult } from "./oversizedValues.js";
 
 export const workpoolOptions = v.object({
   logLevel: v.optional(logLevel),
@@ -148,7 +148,7 @@ async function onCompleteHandler(
   }
   journalEntry.step.inProgress = false;
   journalEntry.step.completedAt = Date.now();
-  const runResult = checkForOversizedResult(args.result);
+  const runResult = await storeOversizedResult(ctx, args.result, { stepId });
   journalEntry.step.runResult = runResult;
   await ctx.db.replace("steps", journalEntry._id, journalEntry);
   console.debug(`Completed execution of ${stepId}`, journalEntry);

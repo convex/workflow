@@ -11,8 +11,10 @@ export { componentSchema };
 export const componentModules = import.meta.glob(
   "../../node_modules/@convex-dev/workpool/src/component/**/*.ts",
 );
-export function initConvexTest() {
-  const t = convexTest(schema, modules);
+export function initConvexTest(options?: {
+  transactionLimits?: Parameters<typeof convexTest>[0]["transactionLimits"];
+}) {
+  const t = convexTest({ schema, modules, ...options });
   workpool.register(t, "workpool");
   return t;
 }
