@@ -1,0 +1,108 @@
+---
+title: "Parallelism & Concurrency"
+sidebar_label: "Parallelism"
+sidebar_position: 600
+description: "Run workflow steps in parallel and control concurrency limits"
+---
+
+# Parallelism & Concurrency
+
+## Running steps in parallel
+
+Run steps concurrently by calling multiple `step.*` methods inside
+`Promise.all()`:
+
+```ts
+export const exampleWorkflow = workflow
+  .define({
+    args: { name: v.string() },
+  })
+  .handler(async (step, args): Promise<void> => {
+    const [result1, result2] = await Promise.all([
+      step.runAction(internal.example.myAction, args),
+      step.runAction(internal.example.myAction, args),
+    ]);
+  });
+```
+
+The workflow will not proceed until **all** steps in the `Promise.all` have
+completed.
+
+## Batch behavior
+
+When you fire off many steps at once, the workflow starts the first batch (up to
+`maxParallelism`, default 10) immediately. It starts the next batch when all
+steps in the current batch have finished. This prevents one workflow from
+starving others of resources.
+
+## Configuring parallelism limits
+
+The `maxParallelism` option controls how many steps can execute simultaneously
+across **all workflows** sharing the same workflow component. This is not a
+per-workflow limit — it's a global limit on concurrent step execution.
+
+### In code
+
+```ts
+const workflow = new WorkflowManager(components.workflow, {
+  workpoolOptions: {
+    // Note: You must only set this to one value per `components.<name>`!
+    // You can set different values if you "use" multiple instances
+    // with unique names in convex.config.ts.
+    // Tip: use an environment variable for dynamic control
+    maxParallelism: 10,
+  },
+});
+```
+
+### Dynamically at runtime
+
+You can adjust parallelism without a code push while your app is running:
+
+```sh
+npx convex run --component workflow utils:updateConfig '{ maxParallelism: 50 }'
+```
+
+This is useful for responding to load issues or temporarily throttling during
+incidents.
+
+## Choosing the right parallelism limit
+
+- **Pro accounts**: Avoid exceeding a total of 100 across all your workflows
+  and workpools.
+- **Monitor backlog**: If your scheduled functions are getting backlogged,
+  decrease the limit. Check the Dashboard's Health and Schedules pages, as well
+  as log stream data.
+- **Define alerts**: Set up alerts on scheduled function backlog to catch
+  problems early.
+
+## Using multiple workflow instances
+
+If you need different parallelism limits for different types of work, install
+multiple instances of the workflow component with unique names:
+
+```ts
+// convex/convex.config.ts
+import workflow from "@convex-dev/workflow/convex.config.js";
+import { defineApp } from "convex/server";
+
+const app = defineApp();
+app.use(workflow, { name: "criticalWorkflow" });
+app.use(workflow, { name: "backgroundWorkflow" });
+export default app;
+```
+
+Then create separate `WorkflowManager` instances with different parallelism
+settings:
+
+```ts
+export const criticalWorkflow = new WorkflowManager(
+  components.criticalWorkflow,
+  { workpoolOptions: { maxParallelism: 30 } },
+);
+
+export const backgroundWorkflow = new WorkflowManager(
+  components.backgroundWorkflow,
+  { workpoolOptions: { maxParallelism: 5 } },
+);
+```

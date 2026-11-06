@@ -1,0 +1,182 @@
+---
+title: "Long-Running Workflows"
+sidebar_label: "Long-Running Workflows"
+sidebar_position: 800
+description: "Handle long-running workflows with nested workflows, chaining, and decomposition"
+---
+
+# Long-Running Workflows
+
+Workflows can run for days, weeks, or even longer — pausing with `sleep` or
+`awaitEvent` costs nothing. However, as workflows grow in complexity or number
+of steps, you should think about how to structure them for reliability and
+maintainability.
+
+## Journal size limits
+
+Each step's arguments and return value are stored in the workflow's journal.
+There is a **1 MB** limit on total step data within a single workflow execution
+and an **8 MB** limit on overall journal size. If you're processing large
+amounts of data, you'll hit these limits.
+
+**Workaround**: Store large results in the database or file storage from your
+step functions and pass IDs within the workflow instead of raw data. See
+[Best Practices](./best-practices.mdx) for more detail.
+
+## Nested workflows with step.runWorkflow
+
+Use `step.runWorkflow` to run another workflow as a single step. The parent
+waits for the nested workflow to finish and receives its return value:
+
+```ts
+const result = await step.runWorkflow(
+  internal.example.childWorkflow,
+  { someArg: "value" },
+);
+```
+
+You can also schedule the nested workflow with a delay:
+
+```ts
+await step.runWorkflow(internal.example.childWorkflow, args, {
+  runAfter: 5000,
+});
+```
+
+### Why use nested workflows?
+
+- **Break up large workflows**: Each nested workflow has its own journal, so
+  journal size limits apply independently.
+- **Reuse logic**: Define common patterns as workflows and compose them.
+- **Isolate failures**: A nested workflow's failure can be caught in the parent
+  with try/catch, allowing graceful recovery.
+- **Track progress**: The status of the parent workflow includes any active
+  child workflow IDs.
+
+### Connecting parent and child
+
+To associate the child workflow with the parent in your own tables, pass
+`step.workflowId` as an argument to the child:
+
+```ts
+export const parentWorkflow = workflow
+  .define({
+    args: {},
+  })
+  .handler(async (step, args): Promise<void> => {
+    const childResult = await step.runWorkflow(
+      internal.example.childWorkflow,
+      { parentWorkflowId: step.workflowId },
+    );
+  });
+```
+
+The child can also return its own workflow ID to the parent if needed.
+
+## Chaining workflows
+
+For sequential processing of independent phases, chain workflows by starting
+the next one from an `onComplete` handler:
+
+```ts
+export const phase1 = workflow
+  .define({
+    args: { data: v.string() },
+  })
+  .handler(async (step, args): Promise<string> => {
+    // ... do phase 1 work
+    return processedData;
+  });
+
+export const handlePhase1Complete = mutation({
+  args: {
+    workflowId: vWorkflowId,
+    result: vResultValidator,
+    context: v.any(),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    if (args.result.kind === "success") {
+      // Start the next phase
+      await start(ctx, internal.example.phase2, {
+        data: args.result.returnValue,
+      });
+    }
+  },
+});
+
+// Start phase 1 with chaining:
+await start(ctx, internal.example.phase1, { data }, {
+  onComplete: internal.example.handlePhase1Complete,
+});
+```
+
+## Decomposition strategies
+
+### By responsibility
+
+Split a monolithic workflow into focused sub-workflows, each handling one
+concern:
+
+```ts
+export const orderWorkflow = workflow
+  .define({
+    args: { orderId: v.id("orders") },
+  })
+  .handler(async (step, args): Promise<void> => {
+    await step.runWorkflow(internal.payments.processPayment, {
+      orderId: args.orderId,
+    });
+    await step.runWorkflow(internal.fulfillment.shipOrder, {
+      orderId: args.orderId,
+    });
+    await step.runWorkflow(internal.notifications.notifyCustomer, {
+      orderId: args.orderId,
+    });
+  });
+```
+
+### By batch
+
+If you're processing many items, split the work into batches and run each
+batch as a separate nested workflow:
+
+```ts
+export const processBatch = workflow
+  .define({
+    args: { itemIds: v.array(v.id("items")) },
+  })
+  .handler(async (step, args): Promise<void> => {
+    // Process items in this batch
+    for (const itemId of args.itemIds) {
+      await step.runAction(internal.items.process, { itemId });
+    }
+  });
+
+export const processAll = workflow
+  .define({
+    args: { allItemIds: v.array(v.id("items")) },
+  })
+  .handler(async (step, args): Promise<void> => {
+    const BATCH_SIZE = 10;
+    const batches = [];
+    for (let i = 0; i < args.allItemIds.length; i += BATCH_SIZE) {
+      batches.push(args.allItemIds.slice(i, i + BATCH_SIZE));
+    }
+    // Run batches in parallel as nested workflows
+    await Promise.all(
+      batches.map((batch) =>
+        step.runWorkflow(internal.example.processBatch, { itemIds: batch })
+      ),
+    );
+  });
+```
+
+## Code stability
+
+If the implementation of a workflow meaningfully changes (steps added, removed,
+or reordered) while instances are in-flight, those instances will fail with a
+**determinism violation**. Keep the implementation stable for the lifetime of
+active workflows.
+
+Shorter, focused workflows reduce the window during which code must remain
+stable — another reason to decompose long-running workflows.
