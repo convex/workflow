@@ -17,6 +17,9 @@ const workflowObject = {
   logLevel: deprecated,
   startedAt: deprecated,
   state: deprecated,
+  // The workflow definition's `version` when the workflow was created.
+  // Denormalized metadata (e.g. for filtering); not read during replay.
+  version: v.optional(v.number()),
   // undefined until it's completed
   runResult: v.optional(vResultValidator),
 
@@ -39,6 +42,9 @@ const stepCommonFields = {
   runResult: v.optional(vResultValidator),
   startedAt: v.number(),
   completedAt: v.optional(v.number()),
+  // The workflow definition's `version` when this step was first executed.
+  // Absent (recorded before versions existed) reads as 0.
+  version: v.optional(v.number()),
 };
 
 export const step = v.union(
