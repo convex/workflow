@@ -12,6 +12,11 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}
+  queue: max
+  cancel-in-progress: false
+
 permissions: {}
 
 env:
@@ -79,6 +84,10 @@ jobs:
           NODE
           tag="v$VERSION"
           if git show-ref --verify --quiet "refs/tags/$tag"; then
+            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch ]]; then
+              echo "$tag was already staged; skipping automatic release"
+              exit 0
+            fi
             [[ "$(git rev-parse "$tag^{commit}")" == "$source" ]] || { echo "$tag points elsewhere" >&2; exit 1; }
           fi
           {
