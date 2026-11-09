@@ -29,7 +29,27 @@ Include a changeset with changes that need a release:
 npx changeset
 ```
 
-To prepare a release from an up-to-date checkout:
+Choose the version bump, describe the user-visible change, and commit the
+generated file with your implementation. Docs-only and development-tooling
+changes do not need a changeset.
+
+Review and merge the release PR when ready. Click **Approve workflows to run**
+on the PR if its checks are waiting for approval. To refresh it manually, run
+the [Update release PR workflow](./.github/workflows/version.yml) on main.
+
+After staging, review the package on npm's **Staged Packages** page and approve
+with 2FA, or run:
+
+```sh
+npm stage approve <stage-id>
+```
+
+Use the stage ID from the workflow log. Approve versions in order to avoid
+moving `latest` backward.
+
+### Local preparation and prereleases
+
+To prepare a release locally instead of using the bot:
 
 ```sh
 npm ci
@@ -42,21 +62,12 @@ Review and commit the version, changelog, and consumed changesets, then merge
 through a checked PR. A push to main stages the latest version-bump commit in
 that push.
 
-Review the staged package on npm's **Staged Packages** page and approve it, or
-run:
-
-```sh
-npm stage approve <stage-id>
-```
-
 For a branch prerelease, prepare a prerelease version with Changesets and
 dispatch **Release** from the Actions page on that branch. The first prerelease
 identifier selects the npm channel, such as `alpha`. Stable releases require
 main.
 
-An already-staged prerelease can merge into main without staging it again, even
-if merging changes its commit SHA. Prepare a new version with Changesets when
-ready for another release.
+### Recovery
 
 For recovery, dispatch **Release** on the appropriate ref with the 40-character
 SHA of a version-bump commit reachable from that ref.
