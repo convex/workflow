@@ -37,7 +37,7 @@ export type StepRequest = {
       }
     | {
         kind: "event";
-        args: { eventId?: EventId };
+        args: { eventId?: EventId; timeout?: number };
       }
     | {
         kind: "workflow";

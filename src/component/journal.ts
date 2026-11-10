@@ -134,6 +134,8 @@ export const startSteps = mutation({
           entry = await awaitEvent(ctx, entry, {
             name,
             eventId: step.args.eventId,
+            timeout: step.args.timeout,
+            workpoolOptions: args.workpoolOptions,
           });
           if (step.runResult) {
             console.event("eventConsumed", {

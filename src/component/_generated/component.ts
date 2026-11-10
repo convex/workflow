@@ -100,7 +100,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   workflowId?: string;
                 }
               | {
-                  args: { eventId?: string };
+                  args: { eventId?: string; timeout?: number };
                   argsSize: number;
                   completedAt?: number;
                   eventId?: string;
@@ -194,7 +194,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   workflowId?: string;
                 }
               | {
-                  args: { eventId?: string };
+                  args: { eventId?: string; timeout?: number };
                   argsSize: number;
                   completedAt?: number;
                   eventId?: string;
@@ -270,7 +270,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 workflowId?: string;
               }
             | {
-                args: { eventId?: string };
+                args: { eventId?: string; timeout?: number };
                 argsSize: number;
                 completedAt?: number;
                 eventId?: string;
@@ -388,7 +388,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   workflowId?: string;
                 }
               | {
-                  args: { eventId?: string };
+                  args: { eventId?: string; timeout?: number };
                   argsSize: number;
                   completedAt?: number;
                   eventId?: string;

@@ -73,6 +73,18 @@ type InlineArgs =
       transactionLimits?: TransactionLimits;
     };
 
+export type AwaitEventArgs<T = unknown, Name extends string = string> = (
+  { name: Name; id?: EventId<Name> } | { name?: Name; id: EventId<Name> }
+) & {
+  validator?: Validator<T, any, any>;
+};
+
+/**
+ * The result of `step.awaitEvent` called with a `timeout`.
+ */
+export type AwaitEventResult<T> =
+  { kind: "event"; value: T } | { kind: "timeout" };
+
 export type WorkflowCtx = {
   /**
    * The ID of the workflow currently running.
@@ -151,12 +163,30 @@ export type WorkflowCtx = {
    * @param event
    */
   awaitEvent<T = unknown, Name extends string = string>(
-    event: (
-      { name: Name; id?: EventId<Name> } | { name?: Name; id: EventId<Name> }
-    ) & {
-      validator?: Validator<T, any, any>;
-    },
+    event: AwaitEventArgs<T, Name> & { timeout?: undefined },
   ): Promise<T>;
+  /**
+   * Blocks until a matching event is sent to this workflow, or until
+   * `timeout` milliseconds pass, whichever comes first.
+   *
+   * Resolves to `{ kind: "event", value }` if the event arrived in time, or
+   * `{ kind: "timeout" }` otherwise. It does not throw on timeout. If the event
+   * is sent with an error, it throws, as without a timeout.
+   *
+   * The wait serves exactly one event. Once it ends (event, timeout, or the
+   * workflow finishing or being canceled), later sends to it are dropped: they
+   * don't throw and aren't stored for a later wait.
+   *
+   * With a name, the wait gets its own event record. It is not satisfied by an
+   * event sent before the wait started. To accept an event that may arrive
+   * early, create it with `createEvent` and wait on its ID.
+   *
+   * @param event - The name or ID of the event, an optional validator, and the
+   *   timeout in milliseconds.
+   */
+  awaitEvent<T = unknown, Name extends string = string>(
+    event: AwaitEventArgs<T, Name> & { timeout: number },
+  ): Promise<AwaitEventResult<T>>;
 
   /**
    * Suspend execution for the given duration.
@@ -240,24 +270,50 @@ export function createWorkflowCtx(
       });
     },
 
-    awaitEvent: async (event) => {
+    awaitEvent: (async (
+      event: AwaitEventArgs & { timeout?: number },
+    ): Promise<unknown> => {
+      const { timeout } = event;
+      if (
+        timeout !== undefined &&
+        !(Number.isFinite(timeout) && timeout >= 0)
+      ) {
+        throw new Error(
+          `awaitEvent timeout must be a non-negative number of milliseconds, got ${timeout}`,
+        );
+      }
+      // Keep the args identical to before for untimed waits, so existing
+      // journals replay without a mismatch.
+      const args: { eventId?: EventId; timeout?: number } =
+        timeout === undefined
+          ? { eventId: event.id }
+          : { eventId: event.id, timeout };
       const result = await run(sender, {
         name: event.name ?? event.id ?? "Event",
-        target: {
-          kind: "event",
-          args: { eventId: event.id },
-        },
+        target: { kind: "event", args },
         retry: undefined,
         inline: false,
         unstableArgs: false,
         schedulerOptions: {},
         transactionLimits: undefined,
       });
-      if (event.validator) {
-        return parse(event.validator, result);
+      if (timeout === undefined) {
+        if (event.validator) {
+          return parse(event.validator, result);
+        }
+        return result;
       }
-      return result as any;
-    },
+      const timed = result as AwaitEventResult<unknown>;
+      if (timed.kind === "timeout") {
+        return { kind: "timeout" };
+      }
+      return {
+        kind: "event",
+        value: event.validator
+          ? parse(event.validator, timed.value)
+          : timed.value,
+      };
+    }) as WorkflowCtx["awaitEvent"],
   } satisfies WorkflowCtx;
 }
 
