@@ -60,3 +60,33 @@ export const createAnswerEvent = internalMutation({
     });
   },
 });
+
+// Two timed waits with the same name, separated by a pause.
+export const timedTwiceByName = workflow
+  .define({ args: { timeout: v.number(), pause: v.number() } })
+  .handler(async (step, args) => {
+    const first = await step.awaitEvent({
+      name: "answer",
+      validator: v.string(),
+      timeout: args.timeout,
+    });
+    await step.sleep(args.pause);
+    const second = await step.awaitEvent({
+      name: "answer",
+      validator: v.string(),
+      timeout: args.timeout,
+    });
+    return { first, second };
+  });
+
+// A pause, then a timed wait. Used to send the event before the wait starts.
+export const timedAfterPause = workflow
+  .define({ args: { timeout: v.number(), pause: v.number() } })
+  .handler(async (step, args) => {
+    await step.sleep(args.pause);
+    return await step.awaitEvent({
+      name: "answer",
+      validator: v.string(),
+      timeout: args.timeout,
+    });
+  });

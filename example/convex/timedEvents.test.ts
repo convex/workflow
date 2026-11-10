@@ -106,6 +106,59 @@ describe("awaitEvent with timeout", () => {
     });
   });
 
+  test("a send before the timed wait starts is received immediately", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.run((ctx) =>
+      workflow.start(
+        ctx,
+        internal.timedEvents.timedAfterPause,
+        { timeout: 60_000, pause: 1000 },
+        { startAsync: true },
+      ),
+    );
+    await advance(t, 200);
+    // Sent during the pause, before the wait exists: stored as "sent".
+    await sendByName(t, workflowId, "early");
+    // Well short of the 60s timeout.
+    await advance(t, 2000);
+    const done = await status(t, workflowId);
+    assert(done.type === "completed");
+    expect(done.result).toEqual({ kind: "event", value: "early" });
+
+    // A late duplicate send is dropped and doesn't throw.
+    await sendByName(t, workflowId, "duplicate");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const after = await status(t, workflowId);
+    assert(after.type === "completed");
+    expect(after.result).toEqual({ kind: "event", value: "early" });
+  });
+
+  test("a late send after a timeout does not satisfy the next timed wait", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.run((ctx) =>
+      workflow.start(
+        ctx,
+        internal.timedEvents.timedTwiceByName,
+        { timeout: 1000, pause: 10_000 },
+        { startAsync: true },
+      ),
+    );
+    // First wait times out; the workflow is now in the pause.
+    await advance(t, 3000);
+    const pausing = await status(t, workflowId);
+    assert(pausing.type === "inProgress");
+    expect(pausing.running.map((s) => s.kind)).toEqual(["sleep"]);
+
+    await sendByName(t, workflowId, "late");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const done = await status(t, workflowId);
+    assert(done.type === "completed");
+    expect(done.result).toEqual({
+      first: { kind: "timeout" },
+      second: { kind: "timeout" },
+    });
+  });
+
   test("a late send by ID does not throw", async () => {
     const t = initConvexTest();
     const workflowId = await t.run((ctx) =>

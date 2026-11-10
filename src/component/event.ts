@@ -29,11 +29,15 @@ export async function awaitEvent(
   },
 ) {
   const timed = args.timeout !== undefined;
-  // A timed wait by name gets its own event record, so it never consumes an
-  // event stored for some other wait, and nothing outlives it.
+  // A timed wait by name consumes an event of that name that was sent before
+  // it started. Otherwise it gets its own event record rather than reusing a
+  // "created" one, so nothing else waits on it and nothing outlives it. A late
+  // send for an earlier timed wait is never stored (see `send`), so a stored
+  // "sent" event is always one nobody has received yet.
   const event =
     timed && !args.eventId
-      ? await insertEvent(ctx, entry.workflowId, args.name)
+      ? ((await findEvent(ctx, entry.workflowId, args, ["sent"])) ??
+        (await insertEvent(ctx, entry.workflowId, args.name)))
       : await getOrCreateEvent(ctx, entry.workflowId, args, [
           "sent",
           "created",

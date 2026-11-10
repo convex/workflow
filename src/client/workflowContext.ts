@@ -177,9 +177,9 @@ export type WorkflowCtx = {
    * workflow finishing or being canceled), later sends to it are dropped: they
    * don't throw and aren't stored for a later wait.
    *
-   * With a name, the wait gets its own event record. It is not satisfied by an
-   * event sent before the wait started. To accept an event that may arrive
-   * early, create it with `createEvent` and wait on its ID.
+   * With a name, an event of that name sent before the wait started (and not
+   * yet received) completes the wait at once. Otherwise the wait gets its own
+   * event record.
    *
    * @param event - The name or ID of the event, an optional validator, and the
    *   timeout in milliseconds.

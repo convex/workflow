@@ -776,10 +776,11 @@ does nothing: it doesn't throw, and it isn't stored for a later wait with the
 same name. This also applies to sends by name while the most recent wait with
 that name was a timed wait that has ended.
 
-A timed wait by name only accepts an event sent while it is waiting, not one
-sent before it started. If the event might arrive first, create it with
-`createEvent` and wait on its ID with a timeout. Without `timeout`, waits behave
-as described above.
+An event sent by name before a timed wait starts is stored as usual, and the
+timed wait receives it right away. So a step that sends a request and a next
+step that waits for the reply with a timeout won't miss a reply that arrives in
+between. A late send for a timed wait that already ended is never stored, so it
+can't satisfy a later wait. Without `timeout`, waits behave as described above.
 
 See [`example/convex/timedEvents.ts`](./example/convex/timedEvents.ts).
 
