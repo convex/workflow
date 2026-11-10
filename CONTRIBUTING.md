@@ -69,13 +69,17 @@ main.
 
 ### Recovery
 
-For recovery, dispatch **Release** on the appropriate ref with the 40-character
-SHA of a version-bump commit reachable from that ref.
+If staging has not been attempted, dispatch **Release** on the appropriate ref
+with the 40-character SHA of a version-bump commit reachable from that ref. Once
+staging starts, inspect npm before retrying: dispatching **Release** runs
+`npm stage publish` again. If the package is already staged, retry only the
+failed tag job or, after verifying the staged version, create its source tag at
+the version-bump commit.
 
-| Failure                                         | Recovery                                                                               |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Transient failure before successful staging     | Retry failed jobs for the same commit.                                                 |
-| Staging succeeded; tagging failed               | Retry only failed jobs.                                                                |
-| Upload outcome uncertain                        | Inspect npm before retrying; recover the tag only after verifying the staged artifact. |
-| Fix requires changing the release commit's code | Prepare a new version-bump commit.                                                     |
-| Candidate rejected after staging                | Leave its tag and prepare a new version.                                               |
+| Failure                                         | Recovery                                                                         |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| Failure before staging was attempted            | Retry failed jobs for the same commit.                                           |
+| Staging succeeded; tagging failed               | Retry only the failed tag job, or create the source tag after verifying staging. |
+| Upload outcome uncertain                        | Inspect npm; retry staging only if absent, or recover the tag if already staged. |
+| Fix requires changing the release commit's code | Prepare a new version-bump commit.                                               |
+| Candidate rejected after staging                | Leave its tag and prepare a new version.                                         |
