@@ -48,6 +48,8 @@ jobs:
             jq -e '.changesets | length == 0' "$RUNNER_TEMP/changesets.json"
             awk -v version="$version" '/^## / { active=($0 == "## " version); next } active && !/^#/ && /[[:alnum:]]/ { found=1 } END { exit !found }' CHANGELOG.md
           fi
+      - name: Test
+        run: npm run check
       - name: Resolve Convex backend version
         id: backend
         run: |
@@ -67,10 +69,8 @@ jobs:
           CONVEX_DISABLE_TELEMETRY: "1"
           BACKEND_VERSION: ${{ steps.backend.outputs.version }}
         run: |
-          npm run test:e2e -- --local-backend-version "$BACKEND_VERSION"
+          npm run test:e2e
           git diff --exit-code -- src/component/_generated
           test -z "$(git ls-files --others --exclude-standard src/component/_generated)"
       - name: Publish package for testing branch
         run: npx pkg-pr-new publish || echo "pkg-pr-new failed"
-      - name: Test
-        run: npm run check

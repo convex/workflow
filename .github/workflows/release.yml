@@ -125,7 +125,8 @@ jobs:
           version=$(jq -r .version package.json)
           awk -v version="$version" '/^## / { active=($0 == "## " version); next } active && !/^#/ && /[[:alnum:]]/ { found=1 } END { exit !found }' CHANGELOG.md
       - run: npm run build
-      - name: Verify component codegen and run E2E tests
+      - run: npm run check
+      - name: Run E2E tests and verify generated code
         env:
           CONVEX_AGENT_MODE: anonymous
           CONVEX_DISABLE_TELEMETRY: "1"
@@ -133,7 +134,6 @@ jobs:
           npm run test:e2e
           git diff --exit-code -- src/component/_generated
           test -z "$(git ls-files --others --exclude-standard src/component/_generated)"
-      - run: npm run check
       - name: Pack the tested package
         run: |
           mkdir -p "$RUNNER_TEMP/npm-release"
