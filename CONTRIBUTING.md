@@ -12,7 +12,6 @@ npm run dev
 ```sh
 npm run build
 npm run check
-npm run test:e2e
 ```
 
 When component APIs change, regenerate and commit the generated files:

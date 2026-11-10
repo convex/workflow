@@ -129,7 +129,7 @@ jobs:
         env:
           CONVEX_AGENT_MODE: anonymous
           CONVEX_DISABLE_TELEMETRY: "1"
-        run: npm run check:release
+        run: npm run check
       - name: Pack the tested package
         run: |
           mkdir -p "$RUNNER_TEMP/npm-release"

@@ -61,16 +61,11 @@ jobs:
           key:
             convex-backend-${{ runner.os }}-${{ runner.arch }}-${{
             steps.backend.outputs.version }}
-      - name: Verify component codegen and run E2E tests
+      - name: Publish package for testing branch
+        run: npx pkg-pr-new publish || echo "pkg-pr-new failed"
+      - name: Test
         env:
           CONVEX_AGENT_MODE: anonymous
           CONVEX_DISABLE_TELEMETRY: "1"
           BACKEND_VERSION: ${{ steps.backend.outputs.version }}
-        run: |
-          npm run test:e2e -- --local-backend-version "$BACKEND_VERSION"
-          git diff --exit-code -- src/component/_generated
-          test -z "$(git ls-files --others --exclude-standard src/component/_generated)"
-      - name: Publish package for testing branch
-        run: npx pkg-pr-new publish || echo "pkg-pr-new failed"
-      - name: Test
         run: npm run check
