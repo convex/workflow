@@ -148,7 +148,11 @@ async function onCompleteHandler(
   }
   journalEntry.step.inProgress = false;
   journalEntry.step.completedAt = Date.now();
-  const runResult = checkForOversizedResult(args.result);
+  const runResult = await checkForOversizedResult(
+    ctx,
+    args.result,
+    { stepId },
+  );
   journalEntry.step.runResult = runResult;
   await ctx.db.replace("steps", journalEntry._id, journalEntry);
   console.debug(`Completed execution of ${stepId}`, journalEntry);

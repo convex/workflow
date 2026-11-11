@@ -303,6 +303,52 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    oversizedValues: {
+      list: FunctionReference<
+        "query",
+        "internal",
+        {
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        {
+          continueCursor: string;
+          isDone: boolean;
+          page: Array<{
+            _creationTime: number;
+            _id: string;
+            kind: "returnValue" | "args";
+            name: string;
+            stepId: string;
+            storageId: string;
+            workflowId: string;
+          }>;
+          pageStatus?: "SplitRecommended" | "SplitRequired" | null;
+          splitCursor?: string | null;
+        },
+        Name
+      >;
+      read: FunctionReference<
+        "action",
+        "internal",
+        { stepId: string },
+        any,
+        Name
+      >;
+      remove: FunctionReference<
+        "action",
+        "internal",
+        { stepId: string },
+        null,
+        Name
+      >;
+    };
     workflow: {
       cancel: FunctionReference<
         "mutation",
