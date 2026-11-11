@@ -321,6 +321,10 @@ queries, mutations, actions, and nested workflows, including journal replay.
 Other failures throw an `Error` with the recorded error message. Errors already
 recorded without structured data remain ordinary errors when replayed.
 
+Failures larger than 800 KiB, counting the message, stack, and structured data
+together, are replaced with an `Error` containing a bounded diagnostic preview.
+The oversized structured data is omitted so the failure can be journaled.
+
 ### Specifying retry behavior
 
 Sometimes actions fail due to transient errors, whether it was an unreliable

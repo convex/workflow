@@ -29,6 +29,48 @@ export const failingAction = internalAction({
   handler: fail,
 });
 
+export const oversizedQuery = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: (ctx) => fail(ctx, { data: "x".repeat(900_000) }),
+});
+
+export const oversizedMutation = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: (ctx) => fail(ctx, { data: "x".repeat(900_000) }),
+});
+
+export const catchingOversizedError = workflow
+  .define({
+    args: { functionType: v.union(v.literal("query"), v.literal("mutation")) },
+    returns: v.object({ isConvexError: v.boolean(), data: v.any() }),
+  })
+  .handler(async (step, { functionType }) => {
+    try {
+      if (functionType === "query") {
+        await step.runQuery(
+          internal.test.convexErrors.oversizedQuery,
+          {},
+          { inline: true },
+        );
+      } else {
+        await step.runMutation(
+          internal.test.convexErrors.oversizedMutation,
+          {},
+          { inline: true },
+        );
+      }
+    } catch (error) {
+      // Journal these caught values in another step so replay must agree.
+      return await step.runAction(internal.test.convexErrors.echo, {
+        isConvexError: error instanceof ConvexError,
+        data: error instanceof Error ? error.message : String(error),
+      });
+    }
+    throw new Error("Expected an oversized error");
+  });
+
 export const echo = internalAction({
   args: { isConvexError: v.boolean(), data: v.any() },
   returns: v.object({ isConvexError: v.boolean(), data: v.any() }),
