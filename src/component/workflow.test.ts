@@ -1,12 +1,29 @@
 /// <reference types="vite/client" />
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api } from "./_generated/api.js";
+import { makeFunctionReference } from "convex/server";
+import { api, internal } from "./_generated/api.js";
 import { initConvexTest } from "./setup.test.js";
 import type { Id } from "./_generated/dataModel.js";
 import { internalMutation } from "./_generated/server.js";
 import { v } from "convex/values";
 import { enqueueWorkflow, getWorkpool, handlerOnComplete } from "./pool.js";
+import { workflowMutation } from "../client/workflowMutation.js";
+import type { WorkflowComponent } from "../client/types.js";
+import type { WorkId } from "@convex-dev/workpool";
+
+const completedStep = (name: string, args: Record<string, unknown> = {}) => ({
+  kind: "function" as const,
+  functionType: "mutation" as const,
+  handle: "function://;workflow.test:noop",
+  name,
+  inProgress: false,
+  argsSize: 0,
+  args,
+  runResult: { kind: "success" as const, returnValue: null },
+  startedAt: Date.now(),
+  completedAt: Date.now(),
+});
 
 describe("workflow", () => {
   beforeEach(async () => {
@@ -773,7 +790,189 @@ describe("workflow", () => {
   });
 });
 
+describe("stale handler runs and notifications", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    handlerRuns.count = 0;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  async function createWorkflow(
+    t: ReturnType<typeof initConvexTest>,
+    handler = "noop",
+  ) {
+    return await t.mutation(api.workflow.create, {
+      workflowName: "test",
+      workflowHandle: `function://;workflow.test:${handler}`,
+      workflowArgs: {},
+      createOnly: true,
+    });
+  }
+
+  const notify = (
+    t: ReturnType<typeof initConvexTest>,
+    workflowId: Id<"workflows">,
+    generationNumber: number,
+  ) =>
+    t.mutation(internal.pool.handlerOnComplete, {
+      workId: "work" as WorkId,
+      result: { kind: "failed", error: "handler failed" },
+      context: { workflowId, generationNumber },
+    });
+
+  test("handlerOnComplete fails a live workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    await notify(t, id, 0);
+    const status = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(status.workflow.runResult).toEqual({
+      kind: "failed",
+      error: "handler failed",
+    });
+  });
+
+  test("handlerOnComplete ignores a workflow that already finished", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    const runResult = { kind: "failed" as const, error: "the real failure" };
+    await t.mutation(api.workflow.complete, {
+      workflowId: id,
+      generationNumber: 0,
+      runResult,
+    });
+    await notify(t, id, 0);
+    const status = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(status.workflow.runResult).toEqual(runResult);
+  });
+
+  test("handlerOnComplete ignores a restarted workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    await t.mutation(api.workflow.complete, {
+      workflowId: id,
+      generationNumber: 0,
+      runResult: { kind: "failed", error: "previous attempt" },
+    });
+    await t.mutation(api.workflow.restart, { workflowId: id });
+    await notify(t, id, 0);
+    const status = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(status.workflow.generationNumber).toBe(1);
+    expect(status.workflow.runResult).toBeUndefined();
+  });
+
+  test("handlerOnComplete ignores a canceled workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    await t.mutation(api.workflow.cancel, { workflowId: id });
+    await notify(t, id, 0);
+    const status = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(status.workflow.runResult).toEqual({ kind: "canceled" });
+  });
+
+  test("handlerOnComplete ignores a cleaned up workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    await t.mutation(api.workflow.cleanup, { workflowId: id, force: true });
+    await notify(t, id, 0);
+    await t.run(async (ctx) => {
+      expect(await ctx.db.get("workflows", id)).toBeNull();
+    });
+  });
+
+  test("journal.load skips the journal of a finished workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    // More than the journal size limit, so reading it at all is detectable.
+    await t.run(async (ctx) => {
+      const blob = "x".repeat(900_000);
+      for (let i = 0; i < 10; i++) {
+        await ctx.db.insert("steps", {
+          workflowId: id,
+          stepNumber: i,
+          step: completedStep(`step${i}`, { blob }),
+        });
+      }
+    });
+    const running = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(running.ok).toBe(false);
+
+    await t.mutation(api.workflow.complete, {
+      workflowId: id,
+      generationNumber: 0,
+      runResult: { kind: "failed", error: "boom" },
+    });
+    const finished = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(finished).toMatchObject({ ok: true, journalEntries: [] });
+    expect(finished.workflow.runResult).toMatchObject({ kind: "failed" });
+    // Without the flag it still reads the journal.
+    const full = await t.query(api.journal.load, { workflowId: id });
+    expect(full.ok).toBe(false);
+    expect(full.journalEntries.length).toBeGreaterThan(0);
+  });
+
+  test("a stale run does not fail on an oversized journal", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t, "throwingWorkflow");
+    await t.run(async (ctx) => {
+      // The workflow has since been restarted.
+      await ctx.db.patch("workflows", id, { generationNumber: 1 });
+      const blob = "x".repeat(900_000);
+      for (let i = 0; i < 10; i++) {
+        await ctx.db.insert("steps", {
+          workflowId: id,
+          stepNumber: i,
+          step: completedStep(`step${i}`, { blob }),
+        });
+      }
+    });
+    const loaded = await t.query(api.journal.load, { workflowId: id });
+    expect(loaded.ok).toBe(false);
+
+    const run = (generationNumber: number) =>
+      t.mutation(
+        makeFunctionReference<"mutation">("workflow.test:throwingWorkflow"),
+        { workflowId: id, generationNumber },
+      );
+    // A run left over from the previous generation leaves the workflow alone.
+    await run(0);
+    const stale = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(stale.workflow.runResult).toBeUndefined();
+
+    // The current generation still fails on the oversized journal.
+    await run(1);
+    const current = await t.query(api.workflow.getStatus, { workflowId: id });
+    expect(current.workflow.runResult).toEqual({
+      kind: "failed",
+      error: "Failed to load journal",
+    });
+    expect(handlerRuns.count).toBe(0);
+  });
+});
+
 export const noop = internalMutation({ args: v.any(), handler: () => {} });
+
+const handlerRuns = { count: 0 };
+
+// A real workflow mutation, running against this component's own API.
+export const throwingWorkflow = workflowMutation(
+  api as unknown as WorkflowComponent,
+  {
+    handler: async () => {
+      handlerRuns.count++;
+      throw new Error("boom");
+    },
+  },
+);
 
 export const failingHandler = internalMutation({
   args: { workflowId: v.id("workflows"), generationNumber: v.number() },

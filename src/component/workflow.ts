@@ -386,7 +386,7 @@ export async function completeHandler(
   );
   const console = await getDefaultLogger(ctx);
   if (workflow.runResult) {
-    throw new Error(`Workflow not running: ${workflow}`);
+    throw new Error(`Workflow not running: ${workflow._id}`);
   }
   workflow.runResult = args.runResult;
   console.event("completed", {

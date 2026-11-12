@@ -16,6 +16,7 @@ import type * as nestedWorkflow from "../nestedWorkflow.js";
 import type * as oversized from "../oversized.js";
 import type * as passingSignals from "../passingSignals.js";
 import type * as test_contextRoundtrip from "../test/contextRoundtrip.js";
+import type * as test_fanIn from "../test/fanIn.js";
 import type * as test_inline from "../test/inline.js";
 import type * as test_oldSyntax from "../test/oldSyntax.js";
 import type * as transcription from "../transcription.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   oversized: typeof oversized;
   passingSignals: typeof passingSignals;
   "test/contextRoundtrip": typeof test_contextRoundtrip;
+  "test/fanIn": typeof test_fanIn;
   "test/inline": typeof test_inline;
   "test/oldSyntax": typeof test_oldSyntax;
   transcription: typeof transcription;
