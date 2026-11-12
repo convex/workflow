@@ -883,6 +883,38 @@ describe("stale handler runs and notifications", () => {
     });
   });
 
+  test("journal.load skips the journal of a finished workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("steps", {
+        workflowId: id,
+        stepNumber: 0,
+        step: completedStep("step0"),
+      });
+    });
+    const running = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(running.journalEntries).toHaveLength(1);
+
+    await t.mutation(api.workflow.complete, {
+      workflowId: id,
+      generationNumber: 0,
+      runResult: { kind: "failed", error: "boom" },
+    });
+    const finished = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(finished).toMatchObject({ ok: true, journalEntries: [] });
+    expect(finished.workflow.runResult).toMatchObject({ kind: "failed" });
+    // Without the flag it still returns everything.
+    const full = await t.query(api.journal.load, { workflowId: id });
+    expect(full.journalEntries).toHaveLength(1);
+  });
+
   test("a stale run does not fail on an oversized journal", async () => {
     const t = initConvexTest();
     const id = await createWorkflow(t, "throwingWorkflow");

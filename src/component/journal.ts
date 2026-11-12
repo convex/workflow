@@ -40,6 +40,10 @@ export const load = query({
     const { logLevel } = await getDefaultLogger(ctx);
     const journalEntries: JournalEntry[] = [];
     let journalSize = 0;
+    if (shortCircuit && workflow.runResult !== undefined) {
+      // Nothing left to replay, so skip reading the journal.
+      return { journalEntries, workflow, logLevel, ok: true };
+    }
     if (shortCircuit) {
       const inProgress = await ctx.db
         .query("steps")
