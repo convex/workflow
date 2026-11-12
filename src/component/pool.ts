@@ -245,6 +245,29 @@ export const handlerOnComplete = internalMutation({
       return;
     }
     const { workflowId, generationNumber } = args.context;
+    // The handler's mutation already rolled back. If its run can no longer be
+    // completed, this notification never can be either, so don't throw.
+    // A malformed id falls through, and fails loudly in completeHandler.
+    const id = ctx.db.normalizeId("workflows", workflowId);
+    const workflow = id && (await ctx.db.get("workflows", id));
+    if (id && !workflow) {
+      console.warn(
+        `Workflow ${workflowId} not found when its handler failed. It was likely cleaned up.`,
+      );
+      return;
+    }
+    if (workflow && workflow.generationNumber !== generationNumber) {
+      console.warn(
+        `Workflow ${workflowId} is at generation ${workflow.generationNumber} when its handler failed at generation ${generationNumber}`,
+      );
+      return;
+    }
+    if (workflow && workflow.runResult !== undefined) {
+      console.warn(
+        `Workflow ${workflowId} already ${workflow.runResult.kind} when its handler failed`,
+      );
+      return;
+    }
     await completeHandler(ctx, {
       workflowId,
       generationNumber,

@@ -190,6 +190,20 @@ export function workflowMutation<
       );
       const inProgress = journalEntries.filter(({ step }) => step.inProgress);
       const console = createLogger(logLevel);
+      if (workflow.generationNumber !== generationNumber) {
+        console.error(
+          `Invalid generation number: ${generationNumber} running workflow ${workflow.name} (${workflowId})`,
+        );
+        return workflowId;
+      }
+      if (workflow.runResult !== undefined) {
+        // A duplicate run of a generation that already finished. Completing it
+        // again can never succeed, so don't replay the handler.
+        console.log(
+          `Workflow ${workflowId} already ${workflow.runResult.kind}, returning.`,
+        );
+        return workflowId;
+      }
       if (!ok) {
         console.error(`Failed to load journal for ${workflowId}`);
         await ctx.runMutation(component.workflow.complete, {
@@ -197,16 +211,6 @@ export function workflowMutation<
           generationNumber,
           runResult: { kind: "failed", error: "Failed to load journal" },
         });
-        return workflowId;
-      }
-      if (workflow.generationNumber !== generationNumber) {
-        console.error(
-          `Invalid generation number: ${generationNumber} running workflow ${workflow.name} (${workflowId})`,
-        );
-        return workflowId;
-      }
-      if (workflow.runResult?.kind === "success") {
-        console.log(`Workflow ${workflowId} completed, returning.`);
         return workflowId;
       }
       if (inProgress.length > 0) {
