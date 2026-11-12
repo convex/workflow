@@ -82,6 +82,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 }
               | {
@@ -97,6 +98,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workflowId?: string;
                 }
               | {
@@ -112,6 +114,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                 }
               | {
                   args: any;
@@ -125,6 +128,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 };
             stepNumber: number;
@@ -146,6 +150,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
+            version?: number;
             workflowHandle: string;
           };
         },
@@ -176,6 +181,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 }
               | {
@@ -191,6 +197,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workflowId?: string;
                 }
               | {
@@ -206,6 +213,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                 }
               | {
                   args: any;
@@ -219,6 +227,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 };
           }>;
@@ -252,6 +261,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   | { error: string; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
+                version?: number;
                 workId?: string;
               }
             | {
@@ -267,6 +277,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   | { error: string; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
+                version?: number;
                 workflowId?: string;
               }
             | {
@@ -282,6 +293,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   | { error: string; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
+                version?: number;
               }
             | {
                 args: any;
@@ -295,6 +307,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   | { error: string; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
+                version?: number;
                 workId?: string;
               };
           stepNumber: number;
@@ -340,6 +353,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           maxParallelism?: number;
           onComplete?: { context?: any; fnHandle: string };
           startAsync?: boolean;
+          version?: number;
           workflowArgs: any;
           workflowHandle: string;
           workflowName: string;
@@ -370,6 +384,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 }
               | {
@@ -385,6 +400,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workflowId?: string;
                 }
               | {
@@ -400,6 +416,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                 }
               | {
                   args: any;
@@ -413,6 +430,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | { error: string; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
+                  version?: number;
                   workId?: string;
                 };
             stepNumber: number;
@@ -433,6 +451,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
+            version?: number;
             workflowHandle: string;
           };
         },
@@ -535,6 +554,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             startedAt: number;
             stepId: string;
             stepNumber: number;
+            version?: number;
             workId?: string;
             workflowId: string;
           }>;

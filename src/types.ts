@@ -4,6 +4,7 @@ import {
   type RunResult,
   type WorkId,
 } from "@convex-dev/workpool";
+import type { BetterOmit } from "convex-helpers";
 import type { FunctionHandle } from "convex/server";
 import {
   v,
@@ -54,12 +55,22 @@ export type WorkflowStep = {
 
   startedAt: number;
   completedAt?: number;
+  /**
+   * The workflow definition's `version` when this step was first executed.
+   * Absent for steps recorded before versions existed (reads as 0).
+   */
+  version?: number;
 } & (
   | { kind: "function"; workId?: WorkId }
   | { kind: "workflow"; nestedWorkflowId: WorkflowId }
   | { kind: "event"; eventId: EventId }
   | { kind: "sleep"; workId: WorkId }
 );
+
+/** A completed step returned by `step.journal.consumeNext()`. */
+export type ConsumedWorkflowStep = BetterOmit<WorkflowStep, "runResult"> & {
+  result: RunResult;
+};
 
 export const vWorkflowStep = v.object({
   workflowId: vWorkflowId,
@@ -72,6 +83,7 @@ export const vWorkflowStep = v.object({
 
   startedAt: v.number(),
   completedAt: v.optional(v.number()),
+  version: v.optional(v.number()),
 
   kind: v.union(
     v.literal("function"),

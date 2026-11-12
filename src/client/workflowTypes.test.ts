@@ -9,7 +9,12 @@ import type {
 import type { PropertyValidators } from "convex/values";
 import { expectTypeOf, test } from "vitest";
 import type { WorkflowId } from "../types.js";
-import type { defineWorkflow, WorkflowManager } from "./index.js";
+import type {
+  ConsumedWorkflowStep,
+  defineWorkflow,
+  RunResult,
+  WorkflowManager,
+} from "./index.js";
 import type { WorkflowMutationResult } from "./types.js";
 import type { WorkflowCtx } from "./workflowContext.js";
 
@@ -19,6 +24,16 @@ import type { WorkflowCtx } from "./workflowContext.js";
 // the WorkflowId returned by direct calls.
 
 declare const _ctx: WorkflowCtx;
+
+test("consumeNext returns a required result and preserves step kind metadata", () => {
+  type Consumed = Awaited<ReturnType<WorkflowCtx["journal"]["consumeNext"]>>;
+  expectTypeOf<Consumed>().toEqualTypeOf<ConsumedWorkflowStep>();
+  expectTypeOf<Consumed["result"]>().toExtend<RunResult>();
+  expectTypeOf<"runResult">().not.toExtend<keyof Consumed>();
+  expectTypeOf<
+    Extract<Consumed, { kind: "workflow" }>["nestedWorkflowId"]
+  >().toEqualTypeOf<WorkflowId>();
+});
 
 /**
  * A registered workflow reaches a parent workflow as a `FunctionReference` via

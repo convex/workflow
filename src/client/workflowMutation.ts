@@ -22,7 +22,11 @@ import { formatErrorWithStack } from "../shared.js";
 import { vWorkflowId, type OnCompleteArgs, type WorkflowId } from "../types.js";
 import { setupEnvironment } from "./environment.js";
 import type { WorkflowDefinition, WorkflowHandler } from "./index.js";
-import { StepExecutor, type StepRequest, type WorkerResult } from "./step.js";
+import {
+  StepExecutor,
+  type ExecutorRequest,
+  type WorkerResult,
+} from "./step.js";
 import {
   type InferFromOptionalValidator,
   type RunResult,
@@ -174,6 +178,7 @@ export function workflowMutation<
           onComplete,
           startAsync: args.startAsync ?? undefined,
           createOnly: !args.startAsync, // either start async or run inline here
+          version: registered.version ?? 0,
         })) as WorkflowId;
         if (args.startAsync) {
           return workflowId;
@@ -224,10 +229,9 @@ export function workflowMutation<
           `Assertion failed: not blocked but have in-progress journal entry`,
         );
       }
-      const channel = new BaseChannel<StepRequest>(
+      const channel = new BaseChannel<ExecutorRequest>(
         workpoolOptions.maxParallelism ?? 10,
       );
-      const step = createWorkflowCtx(workflowId, channel);
       const executor = new StepExecutor(
         workflowId,
         generationNumber,
@@ -237,6 +241,12 @@ export function workflowMutation<
         channel,
         Date.now(),
         workpoolOptions,
+        registered.version ?? 0,
+      );
+      const step = createWorkflowCtx(
+        workflowId,
+        channel,
+        executor.getJournalState.bind(executor),
       );
       const restoreEnvironment = setupEnvironment(
         executor.getGenerationState.bind(executor),
