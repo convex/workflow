@@ -883,6 +883,43 @@ describe("stale handler runs and notifications", () => {
     });
   });
 
+  test("journal.load skips the journal of a finished workflow", async () => {
+    const t = initConvexTest();
+    const id = await createWorkflow(t);
+    // More than the journal size limit, so reading it at all is detectable.
+    await t.run(async (ctx) => {
+      const blob = "x".repeat(900_000);
+      for (let i = 0; i < 10; i++) {
+        await ctx.db.insert("steps", {
+          workflowId: id,
+          stepNumber: i,
+          step: completedStep(`step${i}`, { blob }),
+        });
+      }
+    });
+    const running = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(running.ok).toBe(false);
+
+    await t.mutation(api.workflow.complete, {
+      workflowId: id,
+      generationNumber: 0,
+      runResult: { kind: "failed", error: "boom" },
+    });
+    const finished = await t.query(api.journal.load, {
+      workflowId: id,
+      shortCircuit: true,
+    });
+    expect(finished).toMatchObject({ ok: true, journalEntries: [] });
+    expect(finished.workflow.runResult).toMatchObject({ kind: "failed" });
+    // Without the flag it still reads the journal.
+    const full = await t.query(api.journal.load, { workflowId: id });
+    expect(full.ok).toBe(false);
+    expect(full.journalEntries.length).toBeGreaterThan(0);
+  });
+
   test("a stale run does not fail on an oversized journal", async () => {
     const t = initConvexTest();
     const id = await createWorkflow(t, "throwingWorkflow");
