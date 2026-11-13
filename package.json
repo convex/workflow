@@ -85,7 +85,7 @@
     "eslint-plugin-react-refresh": "0.5.7",
     "globals": "17.14.0",
     "npm-run-all2": "9.0.4",
-    "openai": "7.54.0",
+    "openai": "7.55.0",
     "path-exists-cli": "2.0.0",
     "pkg-pr-new": "0.0.93",
     "prettier": "3.9.10",
