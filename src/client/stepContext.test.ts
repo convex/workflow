@@ -8,6 +8,7 @@ import { createWorkflowCtx } from "./workflowContext.js";
 import type { WorkflowId } from "../types.js";
 import { anyApi, type FunctionReference } from "convex/server";
 import { initConvexTest } from "./setup.test.js";
+import { ConvexError } from "convex/values";
 
 // Fake function reference that satisfies the type constraints.
 function fakeFuncRef(name: string) {
@@ -125,7 +126,35 @@ describe("StepExecutor + WorkflowCtx integration", () => {
     ]);
 
     expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ConvexError);
     expect((error as Error).message).toBe("something broke");
+  });
+
+  it.each([
+    null,
+    false,
+    0,
+    "",
+    "invalid input",
+    { code: "INVALID", count: 7n },
+    new Uint8Array([1, 2]).buffer,
+  ])("restores ConvexError data from a journaled failure: %s", async (data) => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-error" as WorkflowId, channel);
+    const entry = journalEntry({
+      runResult: {
+        kind: "failed",
+        error: "error with server stack",
+        errorData: data,
+      },
+    });
+    const [error] = await Promise.all([
+      ctx.runAction(fakeFuncRef("test"), {}).catch((error: unknown) => error),
+      replayFromJournal(channel, [entry]),
+    ]);
+    expect(error).toBeInstanceOf(ConvexError);
+    expect((error as ConvexError<typeof data>).data).toEqual(data);
+    expect((error as Error).message).toBe(new ConvexError(data).message);
   });
 
   it("throws on a canceled step", async () => {

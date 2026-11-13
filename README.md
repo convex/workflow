@@ -313,6 +313,17 @@ that the "myAction" step is considered "in progress" while it is waiting, and it
 only enqueues one item into the Workpool (myAction@delay), instead of two
 (sleep@delay, myAction@now).
 
+### Catching step errors
+
+When a step throws a `ConvexError`, catching it in the workflow preserves
+`error instanceof ConvexError` and the original `error.data`. This applies to
+queries, mutations, actions, and nested workflows, including journal replay.
+Other failures throw an `Error` with the recorded error message.
+
+Failures larger than 800 KiB, counting the message, stack, and structured data
+together, are replaced with an `Error` containing a bounded diagnostic preview.
+The oversized structured data is omitted so the failure can be journaled.
+
 ### Specifying retry behavior
 
 Sometimes actions fail due to transient errors, whether it was an unreliable

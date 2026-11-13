@@ -10,12 +10,14 @@
 
 import type * as admin from "../admin.js";
 import type * as catchError from "../catchError.js";
+import type * as demo from "../demo.js";
 import type * as e2e from "../e2e.js";
 import type * as example from "../example.js";
 import type * as nestedWorkflow from "../nestedWorkflow.js";
 import type * as oversized from "../oversized.js";
 import type * as passingSignals from "../passingSignals.js";
 import type * as test_contextRoundtrip from "../test/contextRoundtrip.js";
+import type * as test_convexErrors from "../test/convexErrors.js";
 import type * as test_fanIn from "../test/fanIn.js";
 import type * as test_inline from "../test/inline.js";
 import type * as test_oldSyntax from "../test/oldSyntax.js";
@@ -31,12 +33,14 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   catchError: typeof catchError;
+  demo: typeof demo;
   e2e: typeof e2e;
   example: typeof example;
   nestedWorkflow: typeof nestedWorkflow;
   oversized: typeof oversized;
   passingSignals: typeof passingSignals;
   "test/contextRoundtrip": typeof test_contextRoundtrip;
+  "test/convexErrors": typeof test_convexErrors;
   "test/fanIn": typeof test_fanIn;
   "test/inline": typeof test_inline;
   "test/oldSyntax": typeof test_oldSyntax;
