@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- 23a229e: `workflow.list`, `listByName` and `listSteps` (and their client
+  wrappers) now use Convex's built-in pagination instead of `paginator` from
+  convex-helpers. (#306)
+
+  - Cursors are now opaque strings instead of JSON arrays. Cursors held by
+    clients from before the upgrade won't be valid.
+  - A query can paginate only once, counting nested component calls, so calling
+    these from an app query that already paginated (or calling them more than
+    once in one query) will error. Calls from mutations are not limited.
+
+### Patch Changes
+
+- 287c99a: A workflow that fails after parallel steps is no longer replayed by
+  the extra handler runs queued by those steps. Those runs now return early
+  instead of failing with "Workflow not running" and being counted as Workpool
+  failures. (#327)
+
+  Handler runs and handler failure notifications for a workflow that already
+  finished, was restarted or was cleaned up now return without throwing. (#328)
+
+- 287c99a: A handler run for a workflow that already finished no longer reads
+  its journal before returning.
+
 ## 0.4.10
 
 - Updates the /test entrypoint for compatibility with convex-test's new

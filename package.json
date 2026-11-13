@@ -1,6 +1,6 @@
 {
   "name": "@convex-dev/workflow",
-  "version": "0.4.10",
+  "version": "0.5.0",
   "description": "Convex component for durably executing workflows.",
   "keywords": [
     "convex",
