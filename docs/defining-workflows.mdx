@@ -1,0 +1,340 @@
+---
+title: "Defining & Running Workflows"
+sidebar_label: "Defining Workflows"
+sidebar_position: 400
+description: "Define workflows, start them, handle results, check status, cancel, and restart"
+---
+
+# Defining & Running Workflows
+
+## Defining a workflow
+
+Use `workflow.define()` to create a workflow. It works like a Convex action but
+with a few restrictions:
+
+1. The workflow runs in the background, so the result can't be directly returned
+   to whatever code starts it.
+2. The workflow must be _deterministic_, so it should implement most of its
+   logic by calling out to other Convex functions. Access to non-deterministic
+   APIs like `fetch`, env vars, and `crypto` is restricted. Others are patched:
+   `console` for logging, `Math.random()` (seeded PRNG) and `Date` for time.
+
+:::tip
+To help avoid type cycles, always annotate the return type of the `handler`
+with the return type of the workflow.
+:::
+
+```ts
+export const exampleWorkflow = workflow
+  .define({
+    args: { exampleArg: v.string() },
+    returns: v.string(),
+  })
+  .handler(async (step, args) => {
+    const queryResult = await step.runQuery(
+      internal.example.exampleQuery,
+      args,
+    );
+    const actionResult = await step.runAction(
+      internal.example.exampleAction,
+      { queryResult }, // pass in results from previous steps!
+    );
+    return actionResult;
+  });
+
+export const exampleQuery = internalQuery({
+  args: { exampleArg: v.string() },
+  handler: async (ctx, args): Promise<string> => {
+    return `The query says... Hi ${args.exampleArg}!`;
+  },
+});
+
+export const exampleAction = internalAction({
+  args: { queryResult: v.string() },
+  handler: async (ctx, args): Promise<string> => {
+    return args.queryResult + " The action says... Hi back!";
+  },
+});
+```
+
+## Starting a workflow
+
+Once you've defined a workflow, start it from any mutation or action using the
+`start()` helper:
+
+```ts
+import { start } from "@convex-dev/workflow";
+import { internal } from "./_generated/api";
+
+export const kickoffWorkflow = mutation({
+  handler: async (ctx): Promise<WorkflowId> => {
+    // Starts the workflow immediately, run asynchronously
+    const workflowId = await start(ctx, internal.example.exampleWorkflow, {
+      exampleArg: "James",
+    });
+    return workflowId;
+  },
+});
+```
+
+### Calling a workflow directly
+
+Workflows can also be invoked directly from code, the CLI, or the dashboard,
+just like any other Convex function:
+
+```sh
+npx convex run example:exampleWorkflow '{ "args": { "exampleArg": "James" } }'
+```
+
+This is convenient for one-off invocations and debugging.
+
+## Handling results with onComplete
+
+Handle the workflow's result with `onComplete` by passing it to `start()`. This
+is useful for cleaning up resources or taking action when the workflow
+finishes.
+
+You can also specify a `returns` validator for runtime validation — if it fails,
+your `onComplete` handler will be called with an error instead of success. You
+can also do validation in the `onComplete` handler to have more control over
+handling that situation.
+
+```ts
+import { start, vWorkflowId } from "@convex-dev/workflow";
+import { vResultValidator } from "@convex-dev/workpool";
+
+export const foo = mutation({
+  handler: async (ctx): Promise<WorkflowId> => {
+    const name = "James";
+    const workflowId = await start(
+      ctx,
+      internal.example.exampleWorkflow,
+      { name },
+      {
+        onComplete: internal.example.handleOnComplete,
+        context: { intent: "welcome", for: name }, // can be anything
+      },
+    );
+    return workflowId;
+  },
+});
+
+export const handleOnComplete = mutation({
+  args: {
+    workflowId: vWorkflowId,
+    result: vResultValidator,
+    // used to pass through data from the start site.
+    context: v.object({ intent: v.string(), for: v.string() }),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const name = args.context.for;
+    if (args.result.kind === "success") {
+      const text = args.result.returnValue;
+      console.log(`${name} result: ${text}`);
+    } else if (args.result.kind === "error") {
+      console.error("Workflow failed", args.result.error);
+    } else if (args.result.kind === "canceled") {
+      console.log("Workflow canceled", args.context);
+    }
+  },
+});
+```
+
+## Checking a workflow's status
+
+Calling a workflow returns a `WorkflowId` string, which can be used for
+querying a workflow's status with `getStatus()`:
+
+```ts
+import { vWorkflowId, getStatus, WorkflowStatus } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+import { query } from "./_generated/server";
+
+export const watchWorkflow = query({
+  args: { workflowId: vWorkflowId },
+  handler: async (ctx, args): Promise<WorkflowStatus> => {
+    const status = await getStatus(ctx, components.workflow, args.workflowId);
+    console.log("Running:", status.type === "inProgress" ? status.running : []);
+    return status;
+  },
+});
+```
+
+Reading the status from a query subscribes to it, so your frontend reactively
+updates as the workflow progresses.
+
+## Canceling a workflow
+
+Cancel a workflow with `cancel()`, halting its execution immediately.
+In-progress calls to `step.runAction()`, however, will finish executing.
+
+```ts
+import { cancel } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+
+// ... Inside a mutation or action
+await cancel(ctx, components.workflow, workflowId);
+```
+
+## Restarting a failed workflow
+
+Re-run a workflow from a specific point with `restart(...)`. By default it
+retries the handler using the existing history of steps.
+
+```ts
+import { restart } from "@convex-dev/workflow";
+
+// Re-executes the handler with the existing history of steps.
+// Useful if you had a bug in the handler code itself.
+await restart(ctx, components.workflow, args.workflowId);
+```
+
+Restart from a specific step by providing the step number, name, or function
+reference. Events are named after the event name or event ID if no name is
+given. Get the step number from `listSteps` using the `stepNumber` field.
+
+```ts
+// Restart from a step number (0-indexed)
+await restart(ctx, components.workflow, workflowId, { from: 2 });
+
+// Restart from a step by name
+await restart(ctx, components.workflow, workflowId, { from: "eventName" });
+
+// Restart from a step by function reference
+await restart(ctx, components.workflow, workflowId, {
+  from: internal.example.myAction,
+});
+```
+
+It finds the step by number, or the last step with the given name or function
+reference, and deletes all subsequent steps so the workflow re-executes from
+that point.
+
+By default the handler executes in the same transaction, so errors are
+immediately visible but the restart is rolled back on failure. For asynchronous
+restart:
+
+```ts
+await restart(ctx, components.workflow, workflowId, { startAsync: true });
+```
+
+## Cleaning up a workflow
+
+After a workflow has completed, clean up its storage with `cleanup()`.
+Completed workflows are not automatically cleaned up.
+
+A natural place to do this is from the `onComplete` handler:
+
+```ts
+import { cleanup, vWorkflowId, vResultValidator } from "@convex-dev/workflow";
+
+export const afterWorkflow = mutation({
+  args: {
+    workflowId: vWorkflowId,
+    result: vResultValidator,
+    context: v.any(),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    // Clean up a completed workflow's storage.
+    await cleanup(ctx, components.workflow, args.workflowId);
+  },
+});
+```
+
+You can also use `list` to paginate through and clean up old workflows from an
+hourly cron.
+
+## Listing workflows and steps
+
+Use `list` to get a paginated list of all workflows:
+
+```ts
+import { list, listByName, listSteps } from "@convex-dev/workflow";
+
+await list(ctx, components.workflow, { order: "asc" });
+```
+
+Use `listByName` to filter by workflow name:
+
+```ts
+await listByName(ctx, components.workflow, "file/folder:function", {
+  order: "desc",
+});
+```
+
+Both accept `paginationOpts`, such as `{ numItems: 50, cursor: null }` to get
+the first 50 items, or with a continue cursor from a previous call.
+
+Use `listSteps` to get a paginated list of steps in a workflow:
+
+```ts
+await listSteps(ctx, components.workflow, workflowId);
+```
+
+## Custom step names
+
+Specify a custom name for a step for more descriptive logs and easier restarts.
+By default, the `file/folder:function` name is used.
+
+```ts
+export const exampleWorkflow = workflow
+  .define({
+    args: { name: v.string() },
+  })
+  .handler(async (step, args): Promise<void> => {
+    await step.runAction(internal.example.foo, args, { name: "some action" });
+  });
+```
+
+:::tip
+If you rename or move a function used as a step, you can set the `name` option
+to the old function name to maintain compatibility with in-flight workflows.
+:::
+
+## The WorkflowArgs type
+
+The `WorkflowArgs` type lets you derive the argument type for a workflow
+without manually duplicating it:
+
+```ts
+import { WorkflowArgs } from "@convex-dev/workflow";
+
+type Args = WorkflowArgs<typeof internal.example.exampleWorkflow>;
+```
+
+This is handy when writing helpers that wrap `start()` or pass workflow args
+through your own APIs.
+
+## Circular dependencies {#circular-dependencies}
+
+Having the return value of workflows depend on other Convex functions can lead
+to circular dependencies due to the `internal.foo.bar` reference pattern. The
+chained `.define().handler()` API helps avoid this, but you should also add
+explicit return types to regular function handlers:
+
+```diff
+ // Add explicit return types to regular functions:
+ export const myFunction = action({
+   args: { prompt: v.string() },
++  handler: async (ctx, { prompt }): Promise<string> => {
+     // ...
+   },
+ });
+```
+
+## Tip: More concise workflows
+
+To reduce `internal.foo.*` noise, alias the module:
+
+```ts
+const s = internal.steps;
+
+export const myWorkflow = workflow
+  .define({
+    args: { prompt: v.string() },
+  })
+  .handler(async (step, args) => {
+    const result = await step.runAction(s.myAction, args);
+    return result;
+  });
+```

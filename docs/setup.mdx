@@ -1,0 +1,47 @@
+---
+title: "Installation & Setup"
+sidebar_label: "Setup"
+sidebar_position: 200
+description: "Install and configure the Convex Workflow component"
+---
+
+# Installation & Setup
+
+## Install the package
+
+First, add `@convex-dev/workflow` to your Convex project:
+
+```sh
+npm install @convex-dev/workflow
+```
+
+## Register the component
+
+Install the component within your `convex/convex.config.ts` file:
+
+```ts
+// convex/convex.config.ts
+import workflow from "@convex-dev/workflow/convex.config.js";
+import { defineApp } from "convex/server";
+
+const app = defineApp();
+app.use(workflow);
+export default app;
+```
+
+## Create a WorkflowManager
+
+Create a workflow manager within your `convex/` folder, and point it to
+the installed component:
+
+```ts
+// convex/index.ts
+import { WorkflowManager } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+
+export const workflow = new WorkflowManager(components.workflow);
+```
+
+You can pass options to the `WorkflowManager` constructor to configure default
+behavior for all workflows. See [Retry Behavior](./retry-behavior.mdx) and
+[Parallelism](./parallelism.mdx) for details on available options.
