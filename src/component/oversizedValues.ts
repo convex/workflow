@@ -22,7 +22,20 @@ export function checkReturnValueSize(
   return null;
 }
 
-export function checkForOversizedResult(result: RunResult): RunResult {
+export function checkForOversizedResult<Result extends RunResult>(
+  result: Result,
+): Result | Extract<RunResult, { kind: "failed" }> {
+  if (result.kind === "failed") {
+    // Count the whole failure: the message/stack may duplicate the error data.
+    const size = getConvexSize(result);
+    if (size > MAX_RETURN_VALUE_SIZE) {
+      return {
+        kind: "failed",
+        error: `Step failure too large (${size} bytes). Maximum is ${MAX_RETURN_VALUE_SIZE} bytes. Original error data omitted. Preview: ${truncatedPreview(result.error)}`,
+      };
+    }
+    return result;
+  }
   if (result.kind !== "success") {
     return result;
   }

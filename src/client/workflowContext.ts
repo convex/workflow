@@ -10,7 +10,7 @@ import type {
   FunctionType,
   FunctionVisibility,
 } from "convex/server";
-import type { Validator } from "convex/values";
+import { ConvexError, type Validator } from "convex/values";
 import type { EventId, SchedulerOptions, WorkflowId } from "../types.js";
 import { safeFunctionName } from "./safeFunctionName.js";
 import type { StepRequest } from "./step.js";
@@ -330,6 +330,9 @@ async function run(
     case "success":
       return result.returnValue;
     case "failed":
+      if (result.errorData !== undefined) {
+        throw new ConvexError(result.errorData);
+      }
       throw new Error(result.error);
     case "canceled":
       throw new Error("Canceled");

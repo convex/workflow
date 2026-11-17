@@ -39,7 +39,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           name?: string;
           result:
             | { kind: "success"; returnValue: any }
-            | { error: string; kind: "failed" }
+            | { error: string; errorData?: any; kind: "failed" }
             | { kind: "canceled" };
           workflowId?: string;
           workpoolOptions?: {
@@ -79,7 +79,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -94,7 +94,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workflowId?: string;
@@ -109,7 +109,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                 }
@@ -122,7 +122,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -142,7 +142,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             onComplete?: { context?: any; fnHandle: string };
             runResult?:
               | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
+              | { error: string; errorData?: any; kind: "failed" }
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
@@ -173,7 +173,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -188,7 +188,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workflowId?: string;
@@ -203,7 +203,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                 }
@@ -216,7 +216,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -249,7 +249,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 name: string;
                 runResult?:
                   | { kind: "success"; returnValue: any }
-                  | { error: string; kind: "failed" }
+                  | { error: string; errorData?: any; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
                 workId?: string;
@@ -264,7 +264,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 name: string;
                 runResult?:
                   | { kind: "success"; returnValue: any }
-                  | { error: string; kind: "failed" }
+                  | { error: string; errorData?: any; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
                 workflowId?: string;
@@ -279,7 +279,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 name: string;
                 runResult?:
                   | { kind: "success"; returnValue: any }
-                  | { error: string; kind: "failed" }
+                  | { error: string; errorData?: any; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
               }
@@ -292,7 +292,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 name: string;
                 runResult?:
                   | { kind: "success"; returnValue: any }
-                  | { error: string; kind: "failed" }
+                  | { error: string; errorData?: any; kind: "failed" }
                   | { kind: "canceled" };
                 startedAt: number;
                 workId?: string;
@@ -325,7 +325,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           generationNumber: number;
           runResult:
             | { kind: "success"; returnValue: any }
-            | { error: string; kind: "failed" }
+            | { error: string; errorData?: any; kind: "failed" }
             | { kind: "canceled" };
           workflowId: string;
         },
@@ -367,7 +367,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -382,7 +382,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workflowId?: string;
@@ -397,7 +397,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                 }
@@ -410,7 +410,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   name: string;
                   runResult?:
                     | { kind: "success"; returnValue: any }
-                    | { error: string; kind: "failed" }
+                    | { error: string; errorData?: any; kind: "failed" }
                     | { kind: "canceled" };
                   startedAt: number;
                   workId?: string;
@@ -429,7 +429,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             onComplete?: { context?: any; fnHandle: string };
             runResult?:
               | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
+              | { error: string; errorData?: any; kind: "failed" }
               | { kind: "canceled" };
             startedAt?: any;
             state?: any;
@@ -461,7 +461,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             runResult?:
               | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
+              | { error: string; errorData?: any; kind: "failed" }
               | { kind: "canceled" };
             workflowId: string;
           }>;
@@ -494,7 +494,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             runResult?:
               | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
+              | { error: string; errorData?: any; kind: "failed" }
               | { kind: "canceled" };
             workflowId: string;
           }>;
@@ -530,7 +530,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             nestedWorkflowId?: string;
             runResult?:
               | { kind: "success"; returnValue: any }
-              | { error: string; kind: "failed" }
+              | { error: string; errorData?: any; kind: "failed" }
               | { kind: "canceled" };
             startedAt: number;
             stepId: string;
