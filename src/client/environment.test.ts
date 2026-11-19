@@ -207,6 +207,21 @@ describe("environment patching units", () => {
       restoredOuter!.forEach((value, i) => expect(value).toBe(outer[i]));
       snapshot().forEach((value, i) => expect(value).toBe(original[i]));
     });
+    it("restores Date.prototype.constructor", () => {
+      const originalDate = Date;
+      const restore = setupEnvironment(
+        () => ({ now: 1234, latest: true }),
+        "date-constructor-test",
+      );
+      try {
+        expect(new Date().constructor).toBe(globalThis.Date);
+        expect(globalThis.Date).not.toBe(originalDate);
+      } finally {
+        restore();
+      }
+      expect(globalThis.Date).toBe(originalDate);
+      expect(new Date().constructor).toBe(originalDate);
+    });
   });
 
   describe("patchMath", () => {
@@ -328,6 +343,32 @@ describe("environment patching units", () => {
       // Prototype should be the same as original (no patching currently)
       expect(DeterministicDate.prototype).toBe(originalDate.prototype);
       expect(DeterministicDate.prototype.constructor).toBe(DeterministicDate);
+    });
+
+    it("should keep subclass prototypes", () => {
+      const testTime = 2222222222222;
+      mockGetGenerationState.mockReturnValue({ now: testTime, latest: true });
+      const DeterministicDate = createDeterministicDate(
+        Date,
+        mockGetGenerationState,
+      );
+      class MyDate extends DeterministicDate {
+        hello() {
+          return "hi";
+        }
+      }
+
+      const date = new MyDate();
+      expect(date).toBeInstanceOf(MyDate);
+      expect(date).toBeInstanceOf(Date);
+      expect(date.hello()).toBe("hi");
+      expect(date.getTime()).toBe(testTime);
+      expect(new MyDate(0).getTime()).toBe(0);
+      expect(Object.prototype.toString.call(date)).toBe("[object Date]");
+
+      const reflected = Reflect.construct(DeterministicDate, [0], MyDate);
+      expect(reflected).toBeInstanceOf(MyDate);
+      expect(reflected.getTime()).toBe(0);
     });
 
     it("should not affect the original Date constructor", () => {

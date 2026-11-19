@@ -48,19 +48,19 @@ export function createDeterministicDate(
   originalDate: typeof Date,
   getGenerationState: () => GenerationState,
 ): typeof Date {
-  function DeterministicDate(this: unknown, ...args: unknown[]) {
+  function DeterministicDate(...args: unknown[]) {
     // `Date()` was called directly, not as a constructor.
-    if (!(this instanceof DeterministicDate)) {
+    if (new.target === undefined) {
       const date = new (DeterministicDate as typeof Date)();
       return date.toString();
     }
     if (args.length === 0) {
       const { now } = getGenerationState();
-      return new originalDate(now) as unknown as Date;
+      args = [now];
     }
-    return new (originalDate as typeof Date)(
-      ...(args as ConstructorParameters<typeof Date>),
-    ) as unknown as Date;
+    // Construct with `new.target` so subclasses (`class D extends Date`) get
+    // their own prototype.
+    return Reflect.construct(originalDate, args, new.target) as Date;
   }
 
   DeterministicDate.now = function () {
@@ -106,7 +106,10 @@ export function setupEnvironment(
   // Patch Math with seeded random based on workflowId
   global.Math = patchMath(originals.Math as typeof Math, workflowId);
 
-  // Patch Date
+  // Patch Date. `createDeterministicDate` shares the original prototype and
+  // points its `constructor` at the patched Date, so restore it afterwards.
+  const originalDateConstructor = (originals.Date as typeof Date).prototype
+    .constructor;
   global.Date = createDeterministicDate(
     originals.Date as typeof Date,
     getGenerationState,
@@ -154,6 +157,8 @@ export function setupEnvironment(
 
   return () => {
     Object.assign(global, originals);
+    (originals.Date as typeof Date).prototype.constructor =
+      originalDateConstructor;
     for (const [key, descriptor] of readonlyProperties) {
       Object.defineProperty(global, key, descriptor);
     }
