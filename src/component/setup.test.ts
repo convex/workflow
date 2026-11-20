@@ -13,7 +13,9 @@ export const componentModules = import.meta.glob(
 );
 export function initConvexTest() {
   const t = convexTest(schema, modules);
-  workpool.register(t, "workpool");
+  // These tests run workflow as the app, which receives no args, so the
+  // workpool's forwarded args can't resolve until convex/convex#62122.
+  workpool.register(t, "workpool", {});
   return t;
 }
 

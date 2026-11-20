@@ -47,9 +47,15 @@ test.each([false, true])(
   "restores global values and descriptors after repeated workflows (throws: %s)",
   async (fail) => {
     // Use the real Workflow and Workpool components, including their scheduling.
-    const t = convexTest(defineSchema({}), {
-      "./_generated/api.ts": async () => ({}),
-      "./environment.ts": async () => functions,
+    const t = convexTest({
+      schema: defineSchema({}),
+      modules: {
+        "./_generated/api.ts": async () => ({}),
+        "./environment.ts": async () => functions,
+      },
+      // Forwarding an optional arg the app omits is an error until
+      // convex/convex#62122.
+      componentArgs: { workflow: { maxParallelism: 10, logLevel: "WARN" } },
     });
     workflowTest.register(t);
     const global = globalThis as Record<string, unknown>;

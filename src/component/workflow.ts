@@ -13,7 +13,7 @@ import {
   type MutationCtx,
   query,
 } from "./_generated/server.js";
-import { type Logger, logLevel } from "./logging.js";
+import { logLevel } from "./logging.js";
 import { getWorkflow } from "./model.js";
 import { getWorkpool } from "./pool.js";
 import {
@@ -42,7 +42,6 @@ const createArgs = v.object({
   workflowName: v.string(),
   workflowHandle: v.string(),
   workflowArgs: v.any(),
-  maxParallelism: v.optional(v.number()),
   onComplete: v.optional(vOnComplete),
   startAsync: v.optional(v.boolean()),
   createOnly: v.optional(v.boolean()),
@@ -60,7 +59,6 @@ export async function createHandler(
   schedulerOptions?: SchedulerOptions,
 ) {
   const console = await getDefaultLogger(ctx);
-  await updateMaxParallelism(ctx, console, args.maxParallelism);
   const workflowId = await ctx.db.insert("workflows", {
     name: args.workflowName,
     workflowHandle: args.workflowHandle,
@@ -78,7 +76,7 @@ export async function createHandler(
       !args.createOnly,
       "Cannot startAsync and createOnly at the same time",
     );
-    const workpool = await getWorkpool(ctx, args);
+    const workpool = getWorkpool();
     await workpool.enqueueMutation(
       ctx,
       args.workflowHandle as FunctionHandle<"mutation">,
@@ -323,7 +321,7 @@ export async function restartHandler(
   });
 
   if (args.startAsync) {
-    const workpool = await getWorkpool(ctx, {});
+    const workpool = getWorkpool();
     await workpool.enqueueMutation(
       ctx,
       workflow.workflowHandle as FunctionHandle<"mutation">,
@@ -406,7 +404,7 @@ export async function completeHandler(
       )
       .collect();
     if (inProgress.length > 0) {
-      const workpool = await getWorkpool(ctx, {});
+      const workpool = getWorkpool();
       for (const { step } of inProgress) {
         if (!step.kind || step.kind === "function" || step.kind === "sleep") {
           if (step.workId) {
@@ -513,22 +511,6 @@ async function transactionBudgetMostlyConsumed(
   );
 }
 
-async function updateMaxParallelism(
-  ctx: MutationCtx,
-  console: Logger,
-  maxParallelism: number | undefined,
-) {
-  const config = await ctx.db.query("config").first();
-  if (config) {
-    if (maxParallelism && maxParallelism !== config.maxParallelism) {
-      console.warn("Updating max parallelism to", maxParallelism);
-      await ctx.db.patch("config", config._id, { maxParallelism });
-    }
-  } else {
-    await ctx.db.insert("config", { maxParallelism });
-  }
-}
-
 async function cleanupStepsFrom(
   ctx: MutationCtx,
   workflowId: Id<"workflows">,
@@ -568,7 +550,7 @@ async function deleteSteps(ctx: MutationCtx, batch: Doc<"steps">[]) {
     }),
   );
   if (nestedWorkflowIds.length > 0) {
-    const workpool = await getWorkpool(ctx, {});
+    const workpool = getWorkpool();
     await workpool.enqueueMutationBatch(
       ctx,
       api.workflow.cleanup,

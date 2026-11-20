@@ -337,7 +337,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           createOnly?: boolean;
-          maxParallelism?: number;
           onComplete?: { context?: any; fnHandle: string };
           startAsync?: boolean;
           workflowArgs: any;

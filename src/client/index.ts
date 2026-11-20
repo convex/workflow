@@ -564,10 +564,6 @@ export class WorkflowManager {
         this.options?.workpoolOptions,
       );
     }
-    // Note: we're passing through more options than defineWorkflow claims
-    // to support, in order to get the maxParallelism / etc. in there.
-    // Direct users of defineWorkflow should instead configure those values
-    // via configuring the component directly.
     return defineWorkflow<ArgsValidator, ReturnsValidator>(this.component, {
       ...workflow,
       workpoolOptions: {
@@ -629,7 +625,6 @@ export class WorkflowManager {
       workflowName: safeFunctionName(workflow),
       workflowHandle: handle,
       workflowArgs: args,
-      maxParallelism: this.options?.workpoolOptions?.maxParallelism,
       onComplete,
       startAsync: true,
     });

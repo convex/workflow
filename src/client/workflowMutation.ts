@@ -150,7 +150,7 @@ export function workflowMutation<
     > => {
       if (!validate(vWorkflowArgs, args)) {
         if (!("workflowId" in args) && !("args" in args)) {
-          const console = createLogger(workpoolOptions?.logLevel);
+          const console = createLogger();
           console.error(
             `Invalid arguments for workflow: When calling it directly, use '{ args: { ...your workflow args } }'`,
           );
@@ -171,7 +171,6 @@ export function workflowMutation<
           workflowName: metadata.name,
           workflowHandle: await createFunctionHandle(fn),
           workflowArgs: args.args,
-          maxParallelism: workpoolOptions.maxParallelism,
           onComplete,
           startAsync: args.startAsync ?? undefined,
           createOnly: !args.startAsync, // either start async or run inline here
@@ -229,9 +228,7 @@ export function workflowMutation<
           `Assertion failed: not blocked but have in-progress journal entry`,
         );
       }
-      const channel = new BaseChannel<StepRequest>(
-        workpoolOptions.maxParallelism ?? 10,
-      );
+      const channel = new BaseChannel<StepRequest>(10);
       const step = createWorkflowCtx(workflowId, channel);
       const executor = new StepExecutor(
         workflowId,

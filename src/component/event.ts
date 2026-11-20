@@ -170,7 +170,7 @@ export const send = mutation({
         if (!anyMoreEvents) {
           const workflow = await ctx.db.get("workflows", workflowId);
           assert(workflow, `Workflow ${workflowId} not found`);
-          const workpool = await getWorkpool(ctx, args.workpoolOptions);
+          const workpool = getWorkpool(args.workpoolOptions);
           await enqueueWorkflow(ctx, workflow, workpool);
         }
         break;

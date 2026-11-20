@@ -71,11 +71,7 @@ describe("workflow", () => {
       } else if (route === "resume") {
         await t.run(async (ctx) => {
           const workflow = await ctx.db.get("workflows", id);
-          await enqueueWorkflow(
-            ctx,
-            workflow!,
-            await getWorkpool(ctx, undefined),
-          );
+          await enqueueWorkflow(ctx, workflow!, getWorkpool());
         });
       }
       await t.finishAllScheduledFunctions(vi.runAllTimers);

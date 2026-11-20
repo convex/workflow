@@ -33,25 +33,14 @@ export const workpoolOptions = v.object({
 // type check
 const _: WorkpoolOptions = {} as Infer<typeof workpoolOptions>;
 
-export const DEFAULT_MAX_PARALLELISM = 25;
 export const DEFAULT_RETRY_BEHAVIOR = {
   maxAttempts: 5,
   initialBackoffMs: 500,
   base: 2,
 };
 
-export async function getWorkpool(
-  ctx: MutationCtx,
-  opts: WorkpoolOptions | undefined,
-) {
-  // nit: can fetch config only if necessary
-  const config = await ctx.db.query("config").first();
-  const logLevel = opts?.logLevel ?? config?.logLevel;
-  const maxParallelism =
-    opts?.maxParallelism ?? config?.maxParallelism ?? DEFAULT_MAX_PARALLELISM;
+export function getWorkpool(opts?: WorkpoolOptions) {
   return new Workpool(components.workpool, {
-    logLevel,
-    maxParallelism,
     defaultRetryBehavior: opts?.defaultRetryBehavior ?? DEFAULT_RETRY_BEHAVIOR,
     retryActionsByDefault: opts?.retryActionsByDefault ?? false,
   });
@@ -169,7 +158,7 @@ async function onCompleteHandler(
     }
     return;
   }
-  const workpool = await getWorkpool(ctx, args.context.workpoolOptions);
+  const workpool = getWorkpool(args.context.workpoolOptions);
   await enqueueWorkflow(ctx, workflow, workpool);
 }
 
