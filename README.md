@@ -285,8 +285,8 @@ export const exampleWorkflow = workflow
 
 Note: The workflow will not proceed until all steps fired off at once have
 completed. Note: if you are starting many tasks at once, it will only start the
-first 10 (or maxParallelism) at once, to prevent one workflow from starving
-others. It will start the next batch when all 10 have finished.
+first 10 at once, to prevent one workflow from starving others. It will start
+the next batch when all 10 have finished.
 
 ### Sleeping and running steps after a delay
 
@@ -390,39 +390,25 @@ export const exampleWorkflow = workflow
 
 ### Specifying step parallelism
 
-You can specify how many steps can run in parallel by setting the
-`maxParallelism` workpool option. Note: this is not a limit of how many
-workflows can be in progress. Any number of workflows can be in-flight. This
-limit is how many queries/mutations/actions can be executing at the same time.
+You can specify how many steps can run in parallel by passing `maxParallelism`
+when installing the component. Note: this is not a limit of how many workflows
+can be in progress. Any number of workflows can be in-flight. This limit is how
+many queries/mutations/actions can be executing at the same time.
 
-If you see that your scheduled functions are getting backlogged, you should
-decrease this number. You can look for data on the Dashboard's Health and
-Schedules pages, as well as in log stream data (tip: define alerts on this!).
-
-If you don't specify a limit in code, you can set this dynamically without a
-code push while your app is running. Run this from the CLI (or dashboard
-function runner):
-
-```sh
-npx convex run --component workflow utils:updateConfig '{ maxParallelism: 50 }'
+```ts
+// convex/convex.config.ts
+app.use(workflow, { args: { maxParallelism: 10 } });
 ```
+
+The value is checked and applied on each deploy. If you see that your scheduled
+functions are getting backlogged, you should decrease this number. You can look
+for data on the Dashboard's Health and Schedules pages, as well as in log stream
+data (tip: define alerts on this!).
 
 On a Pro account, avoid exceeding a total of 100 across all your workflows and
 workpools. If you want to do a lot of work in parallel, you should employ
 batching, where each workflow operates on a batch of work, e.g. scraping a list
 of links instead of one link per workflow.
-
-```ts
-const workflow = new WorkflowManager(components.workflow, {
-  workpoolOptions: {
-    // Note: You must only set this to one value per `components.<name>`!
-    // You can set different values if you "use" multiple instances
-    // with unique names in convex.config.ts.
-    // Tip: use an environment variable for dynamic control
-    maxParallelism: 10,
-  },
-});
-```
 
 ### Running queries and mutations inline
 

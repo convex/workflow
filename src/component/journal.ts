@@ -107,7 +107,7 @@ export const startSteps = mutation({
       .order("desc")
       .first();
     const stepNumberBase = maxEntry ? maxEntry.stepNumber + 1 : 0;
-    const workpool = await getWorkpool(ctx, args.workpoolOptions);
+    const workpool = getWorkpool(args.workpoolOptions);
     const onComplete = internal.pool.onComplete;
 
     const entries = await Promise.all(
@@ -150,7 +150,6 @@ export const startSteps = mutation({
             workflowName: step.name,
             workflowHandle: step.handle,
             workflowArgs: step.args,
-            maxParallelism: args.workpoolOptions?.maxParallelism,
             onComplete: {
               fnHandle: await createFunctionHandle(
                 internal.pool.nestedWorkflowOnComplete,
