@@ -1,0 +1,67 @@
+---
+title: "Evolving Step Arguments"
+sidebar_label: "Evolving Args"
+sidebar_position: 850
+description: "Use unstableArgs to allow step arguments to change between workflow runs"
+---
+
+# Evolving Step Arguments
+
+When a workflow's handler re-executes (after a step completes, after a sleep,
+or after waiting for an event), the workflow component checks that each step's
+arguments match what was recorded in the journal. If they don't match, the
+workflow fails with a determinism violation.
+
+This protects against subtle bugs caused by code drift, but it can be too
+strict in some cases — for example, when args legitimately need to change
+between runs.
+
+## The unstableArgs option
+
+Pass `{ unstableArgs: true }` to a step to opt out of the args-equality check
+for that step:
+
+```ts
+await step.runQuery(internal.foo.bar, myArgs, { unstableArgs: true });
+await step.runMutation(internal.foo.baz, myArgs, { unstableArgs: true });
+await step.runAction(internal.foo.qux, myArgs, { unstableArgs: true });
+```
+
+This works on `step.runQuery`, `step.runMutation`, `step.runAction`, and
+`step.runWorkflow`.
+
+## When to use it
+
+`unstableArgs: true` is safe when changes to the args don't affect step
+outcomes in a way you care about during replay. Common cases:
+
+- **Backwards-compatible code changes**: You added a new optional field to the
+  args of a function called by an in-flight workflow. Without `unstableArgs`,
+  the new field would cause a mismatch.
+- **Stack traces or other debug data**: Args that include a stack trace will
+  differ between runs because stack traces reflect the current call site.
+- **Telemetry / context fields** that shouldn't gate determinism: request IDs,
+  trace IDs, timestamps used purely for logging.
+
+## When not to use it
+
+Don't use `unstableArgs` to mask real determinism problems. If args change in a
+way that affects the step's behavior (different IDs, different filters,
+different payloads), the journal will record the original return value and
+your workflow will silently get the wrong result. Prefer fixing the
+determinism issue or restarting the workflow.
+
+## Restarting as an alternative
+
+If you need to make non-backwards-compatible changes to step args, restart
+in-flight workflows from the affected step rather than using `unstableArgs`:
+
+```ts
+import { restart } from "@convex-dev/workflow";
+
+await restart(ctx, components.workflow, workflowId, {
+  from: internal.example.myAction,
+});
+```
+
+See [Restarting a failed workflow](./defining-workflows.mdx#restarting-a-failed-workflow).

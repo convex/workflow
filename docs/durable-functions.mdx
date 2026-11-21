@@ -1,0 +1,96 @@
+---
+title: "Durable Functions"
+sidebar_label: "Durable Functions"
+sidebar_position: 300
+description: "Understand how durable functions work in the Convex Workflow component"
+---
+
+# Durable Functions
+
+Durable functions are the core concept behind the Workflow component. They allow
+you to write long-running orchestration logic that survives server restarts,
+transient failures, and indefinite pauses — all using normal TypeScript control
+flow.
+
+## What makes a function "durable"?
+
+A regular function loses all its state if the process crashes or restarts. A
+durable function persists its progress in a journal (stored in the database), so
+it can resume from where it left off.
+
+Each call to `step.runQuery()`, `step.runMutation()`, `step.runAction()`,
+`step.runWorkflow()`, `step.awaitEvent()`, or `step.sleep()` creates a
+**checkpoint** in the journal. When the workflow resumes, it replays the journal
+to recover local variables and control flow, then picks up from the next
+un-executed step.
+
+## The execution model
+
+1. **Start**: The workflow handler begins executing from the top.
+2. **Step dispatch**: When it hits a `step.*` call, the step is dispatched
+   asynchronously (via the Workpool) and the handler suspends.
+3. **Step completion**: When the step finishes, the workflow handler re-executes
+   from the top, replaying completed steps from the journal.
+4. **Resume**: The handler reaches the next un-executed step and dispatches it.
+5. **Repeat** until the handler returns or throws.
+
+This means the handler code between steps runs multiple times. That's why it
+must be **deterministic** — the same inputs and journal should produce the same
+sequence of steps.
+
+## Determinism requirements
+
+The workflow handler must be deterministic so that replaying the journal
+produces the same step sequence. The Workflow component enforces this by:
+
+- **Blocking non-deterministic APIs**: `fetch`, environment variables, and
+  `crypto.subtle` are not available in the handler. Use them inside step
+  functions (actions) instead.
+- **Patching common APIs**: `Math.random()` is seeded per-workflow for
+  reproducibility. `Date.now()` and `new Date()` return consistent values.
+  `console.*` methods work normally for logging.
+
+If the implementation of the workflow meaningfully changes (steps added,
+removed, or reordered) between when a workflow starts and when it resumes, it
+will fail with a **determinism violation**. The implementation should stay stable
+for the lifetime of active workflows.
+
+:::tip
+If you need side effects like `fetch` or `crypto.subtle`, put them in an action
+and call it with `step.runAction()`.
+:::
+
+## Local variables and control flow
+
+Because the journal captures each step's result, local variables derived from
+step results are automatically restored during replay:
+
+```ts
+export const myWorkflow = workflow
+  .define({
+    args: { userId: v.id("users") },
+  })
+  .handler(async (step, args): Promise<void> => {
+    // This step's result is stored in the journal.
+    const user = await step.runQuery(internal.users.get, {
+      userId: args.userId,
+    });
+
+    // Local variable — restored during replay from the journal.
+    const greeting = `Hello, ${user.name}!`;
+
+    // Branching works naturally.
+    if (user.isPremium) {
+      await step.runAction(internal.notifications.sendPremiumWelcome, {
+        message: greeting,
+      });
+    } else {
+      await step.runAction(internal.notifications.sendBasicWelcome, {
+        message: greeting,
+      });
+    }
+  });
+```
+
+Loops, try/catch, and any other control flow work the same way — as long as
+the path through the code is deterministic given the journal.

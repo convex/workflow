@@ -1,0 +1,52 @@
+---
+title: "Sleeping & Scheduling"
+sidebar_label: "Sleeping & Scheduling"
+sidebar_position: 550
+description: "Pause workflows with sleep and schedule steps with runAfter and runAt"
+---
+
+# Sleeping & Scheduling
+
+## Sleeping
+
+Use `step.sleep` to pause a workflow for a given duration in milliseconds. The
+workflow consumes **no resources** while sleeping — it doesn't hold a connection
+or occupy a function slot.
+
+```ts
+// Wait one day before continuing
+await step.sleep(24 * 60 * 60 * 1000);
+```
+
+You can name the sleep step for clarity:
+
+```ts
+await step.sleep(3 * DAY, { name: "wait before follow-up" });
+```
+
+## Scheduling steps with runAfter and runAt
+
+If you want to defer a specific step rather than pausing the whole workflow, use
+`runAfter` or `runAt` as scheduling options on any step:
+
+```ts
+// Run this action 10 seconds from now
+await step.runAction(internal.example.myAction, args, { runAfter: 10_000 });
+
+// Run at a specific timestamp
+await step.runAction(internal.example.myAction, args, { runAt: targetTime });
+```
+
+This is roughly equivalent to doing a sleep first, with two differences:
+
+- The step is considered "in progress" while it is waiting
+- It only enqueues one item into the Workpool (`myAction@delay`) instead of two
+  (`sleep@delay`, `myAction@now`)
+
+## When to use sleep vs. runAfter
+
+| Scenario | Use |
+|---|---|
+| Pause the whole workflow (e.g. wait 3 days before follow-ups) | `step.sleep()` |
+| Defer a specific step while letting the workflow continue | `runAfter` / `runAt` |
+| Space out parallel steps over time | `runAfter` with increasing delays |
