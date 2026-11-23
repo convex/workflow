@@ -58,7 +58,7 @@
     }
   },
   "peerDependencies": {
-    "@convex-dev/workpool": "^0.4.16",
+    "@convex-dev/workpool": "^0.4.16 || ^0.5.0",
     "convex": "^1.46.0",
     "convex-helpers": "^0.1.127"
   },
@@ -68,7 +68,7 @@
   "devDependencies": {
     "@changesets/cli": "3.0.3",
     "@convex-dev/eslint-plugin": "5.0.1",
-    "@convex-dev/workpool": "0.4.16",
+    "@convex-dev/workpool": "0.5.0",
     "@edge-runtime/vm": "5.0.0",
     "@eslint/eslintrc": "3.3.7",
     "@eslint/js": "10.0.1",
@@ -76,22 +76,22 @@
     "@typescript-eslint/eslint-plugin": "8.73.0",
     "@typescript-eslint/parser": "8.73.0",
     "chokidar-cli": "3.0.0",
-    "convex": "1.50.0",
+    "convex": "1.51.0",
     "convex-helpers": "0.1.136",
-    "convex-test": "0.0.72",
+    "convex-test": "0.0.73",
     "cpy-cli": "7.0.0",
     "eslint": "10.15.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.8",
     "globals": "17.14.0",
     "npm-run-all2": "9.0.4",
-    "openai": "7.59.0",
+    "openai": "7.62.0",
     "path-exists-cli": "2.0.0",
     "pkg-pr-new": "0.0.94",
     "prettier": "3.10.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.73.0",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   },
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js"
