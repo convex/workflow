@@ -85,7 +85,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.8",
     "globals": "17.14.0",
-    "npm-run-all2": "9.0.4",
+    "npm-run-all2": "9.1.0",
     "openai": "7.62.0",
     "path-exists-cli": "2.0.0",
     "pkg-pr-new": "0.0.94",
