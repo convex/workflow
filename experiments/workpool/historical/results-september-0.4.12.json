@@ -2,14 +2,8 @@
   "date": "2026-09-12T02:42:24.325Z",
   "node": "v22.22.2",
   "repeats": 3,
-  "parallelisms": [
-    25,
-    100
-  ],
-  "workloads": [
-    "pool",
-    "mutation"
-  ],
+  "parallelisms": [25, 100],
+  "workloads": ["pool", "mutation"],
   "modes": [
     "baseline",
     "filtered",

@@ -2,20 +2,9 @@
   "date": "2026-11-24T06:39:52.485Z",
   "node": "v24.22.1",
   "repeats": 3,
-  "parallelisms": [
-    25,
-    100
-  ],
-  "workloads": [
-    "mutation",
-    "query"
-  ],
-  "modes": [
-    "baseline",
-    "prFiltered",
-    "transactional",
-    "allMutations"
-  ],
+  "parallelisms": [25, 100],
+  "workloads": ["mutation", "query"],
+  "modes": ["baseline", "prFiltered", "transactional", "allMutations"],
   "samples": [
     {
       "mode": "baseline",
