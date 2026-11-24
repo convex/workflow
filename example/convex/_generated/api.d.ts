@@ -16,6 +16,7 @@ import type * as example from "../example.js";
 import type * as nestedWorkflow from "../nestedWorkflow.js";
 import type * as oversized from "../oversized.js";
 import type * as passingSignals from "../passingSignals.js";
+import type * as replicateWebhook from "../replicateWebhook.js";
 import type * as test_contextRoundtrip from "../test/contextRoundtrip.js";
 import type * as test_convexErrors from "../test/convexErrors.js";
 import type * as test_fanIn from "../test/fanIn.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   nestedWorkflow: typeof nestedWorkflow;
   oversized: typeof oversized;
   passingSignals: typeof passingSignals;
+  replicateWebhook: typeof replicateWebhook;
   "test/contextRoundtrip": typeof test_contextRoundtrip;
   "test/convexErrors": typeof test_convexErrors;
   "test/fanIn": typeof test_fanIn;
