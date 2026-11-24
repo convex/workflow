@@ -145,7 +145,9 @@ is designed to feel like a Convex action but with a few restrictions:
    logic by calling out to other Convex functions. We restrict access to some
    non-deterministic functions like `fetch`, env vars and `crypto`. Others we
    patch, such as `console` for logging, `Math.random()` (seeded PRNG) and
-   `Date` for time.
+   `Date` and `Temporal.Now` (when available) for time. `Temporal.Now` uses the
+   same replay timestamp as `Date.now()`, with millisecond precision and UTC as
+   the default time zone; explicit time zones are supported.
 
 Note: To help avoid type cycles, always annotate the return type of the
 `handler` with the return type of the workflow.

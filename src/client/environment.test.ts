@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Temporal } from "@js-temporal/polyfill";
 import {
   patchMath,
   createDeterministicDate,
+  createDeterministicTemporal,
   createConsole,
   setupEnvironment,
 } from "./environment.js";
 
 describe("environment patching units", () => {
   describe("setupEnvironment", () => {
+    beforeEach(() => vi.stubGlobal("Temporal", Temporal));
+    afterEach(() => vi.unstubAllGlobals());
+
     const disabledKeys = [
       "process",
       "Crypto",
@@ -88,7 +93,7 @@ describe("environment patching units", () => {
       "restores Convex runtime descriptors after repeated setup (throws: %s)",
       (throws) => {
         const global = globalThis as Record<string, unknown>;
-        const keys = ["Math", "Date", "console", ...disabledKeys];
+        const keys = ["Math", "Date", "Temporal", "console", ...disabledKeys];
         const hostDescriptors = Object.fromEntries(
           keys.map((key) => [
             key,
@@ -173,7 +178,7 @@ describe("environment patching units", () => {
 
     it("restores the outer environment after a nested environment throws", () => {
       const global = globalThis as Record<string, unknown>;
-      const keys = ["Math", "Date", "console", ...disabledKeys];
+      const keys = ["Math", "Date", "Temporal", "console", ...disabledKeys];
       const snapshot = () => keys.map((key) => global[key]);
       const original = snapshot();
       const restoreOuter = setupEnvironment(
@@ -182,6 +187,8 @@ describe("environment patching units", () => {
       );
       const outer = snapshot();
       let innerTime;
+      let innerTemporalTime;
+      let outerTemporalTime;
       let restoredOuter;
       let caught;
       try {
@@ -191,6 +198,8 @@ describe("environment patching units", () => {
         );
         try {
           innerTime = Date.now();
+          innerTemporalTime = (global.Temporal as typeof Temporal).Now.instant()
+            .epochMilliseconds;
           throw new Error("handler failed");
         } finally {
           restoreInner();
@@ -198,14 +207,159 @@ describe("environment patching units", () => {
       } catch (error) {
         caught = error;
         restoredOuter = snapshot();
+        outerTemporalTime = (global.Temporal as typeof Temporal).Now.instant()
+          .epochMilliseconds;
       } finally {
         restoreOuter();
       }
 
       expect(caught).toEqual(new Error("handler failed"));
       expect(innerTime).toBe(2000);
+      expect(innerTemporalTime).toBe(2000);
+      expect(outerTemporalTime).toBe(1000);
       restoredOuter!.forEach((value, i) => expect(value).toBe(outer[i]));
       snapshot().forEach((value, i) => expect(value).toBe(original[i]));
+    });
+
+    it.each([false, true])(
+      "leaves unavailable Temporal unchanged (own property: %s)",
+      (hasProperty) => {
+        const global = globalThis as Record<string, unknown>;
+        if (hasProperty) {
+          global.Temporal = undefined;
+        } else {
+          delete global.Temporal;
+        }
+        const original = Object.getOwnPropertyDescriptor(global, "Temporal");
+        const restore = setupEnvironment(
+          () => ({ now: 1234, latest: true }),
+          "without-temporal",
+        );
+        let during;
+        try {
+          during = Object.getOwnPropertyDescriptor(global, "Temporal");
+        } finally {
+          restore();
+        }
+        expect(during).toEqual(original);
+        expect(Object.getOwnPropertyDescriptor(global, "Temporal")).toEqual(
+          original,
+        );
+      },
+    );
+  });
+
+  describe("createDeterministicTemporal", () => {
+    const timestamp = 1704067200123; // 2024-01-01T00:00:00.123Z
+
+    it("reads the current generation at call time, including replay", () => {
+      const generation = { now: timestamp, latest: false };
+      const patched = createDeterministicTemporal(Temporal, () => generation);
+      const { instant, plainDateISO } = patched.Now;
+
+      expect(instant().epochMilliseconds).toBe(timestamp);
+      expect(instant().epochNanoseconds).toBe(BigInt(timestamp) * 1_000_000n);
+      expect(plainDateISO().toString()).toBe("2024-01-01");
+
+      generation.now += 86_400_000;
+      generation.latest = true;
+      expect(instant().epochMilliseconds).toBe(timestamp + 86_400_000);
+      expect(plainDateISO().toString()).toBe("2024-01-02");
+
+      // Replaying the earlier generation must produce the same instant.
+      generation.now = timestamp;
+      generation.latest = false;
+      expect(instant().epochMilliseconds).toBe(timestamp);
+    });
+
+    it("uses UTC by default for all calendar and clock methods", () => {
+      const original = {
+        ...Temporal,
+        Now: { ...Temporal.Now, timeZoneId: () => "America/Los_Angeles" },
+      };
+      const patched = createDeterministicTemporal(original, () => ({
+        now: timestamp,
+        latest: true,
+      }));
+
+      expect(patched.Now.timeZoneId()).toBe("UTC");
+      expect(patched.Now.zonedDateTimeISO().toString()).toBe(
+        "2024-01-01T00:00:00.123+00:00[UTC]",
+      );
+      expect(patched.Now.plainDateTimeISO().toString()).toBe(
+        "2024-01-01T00:00:00.123",
+      );
+      expect(patched.Now.plainDateISO().toString()).toBe("2024-01-01");
+      expect(patched.Now.plainTimeISO().toString()).toBe("00:00:00.123");
+    });
+
+    it.each([
+      "America/Los_Angeles",
+      "-08:00",
+      Temporal.ZonedDateTime.from(
+        "2024-06-01T00:00-07:00[America/Los_Angeles]",
+      ),
+    ])("honors an explicit time zone: %s", (timeZone) => {
+      const patched = createDeterministicTemporal(Temporal, () => ({
+        now: timestamp,
+        latest: false,
+      }));
+
+      expect(patched.Now.zonedDateTimeISO(timeZone).epochMilliseconds).toBe(
+        timestamp,
+      );
+      expect(patched.Now.zonedDateTimeISO(timeZone).offset).toBe("-08:00");
+      expect(patched.Now.plainDateTimeISO(timeZone).toString()).toBe(
+        "2023-12-31T16:00:00.123",
+      );
+      expect(patched.Now.plainDateISO(timeZone).toString()).toBe("2023-12-31");
+      expect(patched.Now.plainTimeISO(timeZone).toString()).toBe(
+        "16:00:00.123",
+      );
+    });
+
+    it("preserves Temporal validation of invalid time zones", () => {
+      const patched = createDeterministicTemporal(Temporal, () => ({
+        now: timestamp,
+        latest: true,
+      }));
+      for (const method of [
+        patched.Now.zonedDateTimeISO,
+        patched.Now.plainDateTimeISO,
+        patched.Now.plainDateISO,
+        patched.Now.plainTimeISO,
+      ]) {
+        expect(() => method("invalid/timezone")).toThrow(RangeError);
+        expect(() => method(null as unknown as string)).toThrow(TypeError);
+      }
+    });
+
+    it("preserves constructors and descriptors without mutating Temporal.Now", () => {
+      const descriptors = Object.getOwnPropertyDescriptors(Temporal);
+      const nowDescriptors = Object.getOwnPropertyDescriptors(Temporal.Now);
+      const patched = createDeterministicTemporal(Temporal, () => ({
+        now: timestamp,
+        latest: true,
+      }));
+
+      expect(patched).not.toBe(Temporal);
+      expect(patched.Now).not.toBe(Temporal.Now);
+      expect(patched.Now.instant()).toBeInstanceOf(Temporal.Instant);
+      for (const key of Reflect.ownKeys(Temporal)) {
+        if (key !== "Now") {
+          expect(Object.getOwnPropertyDescriptor(patched, key)).toEqual(
+            Object.getOwnPropertyDescriptor(Temporal, key),
+          );
+        }
+      }
+      expect(Object.prototype.toString.call(patched.Now)).toBe(
+        "[object Temporal.Now]",
+      );
+      expect(Object.keys(patched.Now)).toEqual([]);
+      expect(Object.getOwnPropertyDescriptors(Temporal)).toEqual(descriptors);
+      expect(Object.getOwnPropertyDescriptors(Temporal.Now)).toEqual(
+        nowDescriptors,
+      );
     });
   });
 
