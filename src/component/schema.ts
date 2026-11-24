@@ -4,6 +4,18 @@ import { defineSchema, defineTable } from "convex/server";
 import { type Infer, v } from "convex/values";
 import { logLevel } from "./logging.js";
 
+export const vWebhookDataHandling = v.union(
+  v.literal("include"),
+  v.literal("discard"),
+);
+export type WebhookDataHandling = Infer<typeof vWebhookDataHandling>;
+
+export const vWebhookSettings = v.object({
+  body: v.optional(vWebhookDataHandling),
+  headers: v.optional(vWebhookDataHandling),
+});
+export type WebhookSettings = Infer<typeof vWebhookSettings>;
+
 export const vOnComplete = v.object({
   fnHandle: v.string(), // mutation
   context: v.optional(v.any()),
@@ -122,6 +134,12 @@ export default defineSchema({
     "workflowId",
     "state.kind",
   ]),
+  webhookCallbacks: defineTable({
+    uuid: v.string(),
+    eventId: v.id("events"),
+    workflowId: v.id("workflows"),
+    settings: vWebhookSettings,
+  }).index("by_uuid", ["uuid"]),
   onCompleteFailures: defineTable(
     v.union(
       v.object({

@@ -86,6 +86,22 @@ export const vWorkflowStep = v.object({
 // type assertion to keep us in check
 const _workflowStep: Infer<typeof vWorkflowStep> = {} as WorkflowStep;
 
+export type WebhookDataHandling = "include" | "discard";
+
+export type WebhookSettings = {
+  /** How to handle the request body. Default: "include" */
+  body?: WebhookDataHandling;
+  /** How to handle the request headers. Default: "include" */
+  headers?: WebhookDataHandling;
+};
+
+export type WebhookEvent<Name extends string = string> = {
+  eventId: EventId<Name>;
+  uuid: string;
+  /** The full webhook URL — give this to the external service that will call back. */
+  url: string;
+};
+
 export type SchedulerOptions =
   | {
       /**

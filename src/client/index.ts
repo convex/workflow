@@ -23,6 +23,8 @@ import type {
   EventId,
   OnCompleteArgs,
   PublicWorkflow,
+  WebhookEvent,
+  WebhookSettings,
   WorkflowId,
   WorkflowStep,
 } from "../types.js";
@@ -47,6 +49,9 @@ export {
   vWorkflowId,
   vWorkflowStep,
   type EventId,
+  type WebhookDataHandling,
+  type WebhookEvent,
+  type WebhookSettings,
   type WorkflowId,
   type WorkflowStep,
 } from "../types.js";
@@ -371,17 +376,61 @@ export async function sendEvent<T = null, Name extends string = string>(
  * @param ctx - From an action, mutation or workflow step.
  * @param component - The workflow component.
  * @param args - The name of the event and what workflow it belongs to.
+ * @param args.timeoutMs - Optional timeout in milliseconds. If the event is not
+ *   sent within this duration, it will fail with error "Timeout".
  * @returns The event ID, which can be used to send the event or await it.
  */
 export async function createEvent<Name extends string>(
   ctx: MutationCtx | ActionCtx,
   component: WorkflowComponent,
-  args: { name: Name; workflowId: WorkflowId },
+  args: { name: Name; workflowId: WorkflowId; timeoutMs?: number },
 ): Promise<EventId<Name>> {
   return (await ctx.runMutation(component.event.create, {
     name: args.name,
     workflowId: args.workflowId,
+    timeoutMs: args.timeoutMs,
   })) as EventId<Name>;
+}
+
+/**
+ * Create a webhook event that generates a URL. When the URL is called via HTTP,
+ * the request data is sent as the event value. Pass `result.url` to the
+ * external service that will call back.
+ *
+ * @param ctx - From an action, mutation or workflow step.
+ * @param component - The workflow component.
+ * @param args - Configuration for the webhook event.
+ * @param args.name - The event name.
+ * @param args.workflowId - The workflow this event belongs to.
+ * @param args.settings - How to handle the incoming request body and headers.
+ *   Each can be `"include"` (default — included in the event value, with large
+ *   payloads automatically spilled to file storage as `bodyStorageId` /
+ *   `headersStorageId`) or `"discard"` (omit from the event value).
+ * @param args.timeoutMs - Optional timeout in milliseconds. If the webhook is
+ *   not called within this duration, the event fails with error "Timeout".
+ * @returns The event ID, UUID, and full URL to give to the caller.
+ */
+export async function createWebhookEvent<Name extends string>(
+  ctx: MutationCtx | ActionCtx,
+  component: WorkflowComponent,
+  args: {
+    name: Name;
+    workflowId: WorkflowId;
+    settings?: WebhookSettings;
+    timeoutMs?: number;
+  },
+): Promise<WebhookEvent<Name>> {
+  const result = await ctx.runMutation(component.event.createWebhook, {
+    name: args.name,
+    workflowId: args.workflowId,
+    settings: args.settings,
+    timeoutMs: args.timeoutMs,
+  });
+  return {
+    eventId: result.eventId as EventId<Name>,
+    uuid: result.uuid,
+    url: result.url,
+  };
 }
 
 /**
@@ -798,13 +847,42 @@ export class WorkflowManager {
    * Create an event ahead of time, enabling awaiting a specific event by ID.
    * @param ctx - From an action, mutation or workflow step.
    * @param args - The name of the event and what workflow it belongs to.
+   * @param args.timeoutMs - Optional timeout. If the event is not sent within
+   *   this duration, it will fail with error "Timeout".
    * @returns The event ID, which can be used to send the event or await it.
    */
   async createEvent<Name extends string>(
     ctx: MutationCtx | ActionCtx,
-    args: { name: Name; workflowId: WorkflowId },
+    args: { name: Name; workflowId: WorkflowId; timeoutMs?: number },
   ): Promise<EventId<Name>> {
     return createEvent(ctx, this.component, args);
+  }
+
+  /**
+   * Create a webhook event that generates a URL. When the URL is called via
+   * HTTP, the request data is sent as the event value. Pass `result.url` to
+   * the external service that will call back.
+   *
+   * @param ctx - From an action, mutation or workflow step.
+   * @param args - Configuration for the webhook event.
+   * @param args.name - The event name.
+   * @param args.workflowId - The workflow this event belongs to.
+   * @param args.settings - How to handle the request body and headers.
+   *   Each can be `"include"` (default; large payloads auto-spill to file
+   *   storage) or `"discard"`.
+   * @param args.timeoutMs - Optional timeout in milliseconds.
+   * @returns The event ID, UUID, and full webhook URL.
+   */
+  async createWebhookEvent<Name extends string>(
+    ctx: MutationCtx | ActionCtx,
+    args: {
+      name: Name;
+      workflowId: WorkflowId;
+      settings?: WebhookSettings;
+      timeoutMs?: number;
+    },
+  ): Promise<WebhookEvent<Name>> {
+    return createWebhookEvent(ctx, this.component, args);
   }
 }
 
