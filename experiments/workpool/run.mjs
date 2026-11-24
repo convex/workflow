@@ -17,9 +17,9 @@ assert(
   "--repeats must be a positive safe integer",
 );
 const parallelisms = (flags.parallelism ?? "25,100").split(",").map(Number);
-const workloads = (flags.workloads ?? "pool,mutation").split(",");
+const workloads = (flags.workloads ?? "mutation,query").split(",");
 const modes = (
-  flags.modes ?? "baseline,filtered,prFiltered,transactional,allMutations"
+  flags.modes ?? "baseline,prFiltered,transactional,allMutations"
 ).split(",");
 const prefix = new Date().toISOString().replaceAll(/[:.]/g, "-");
 const output = path.resolve(
@@ -28,6 +28,9 @@ const output = path.resolve(
 const samples = [];
 const results = {
   date: new Date().toISOString(),
+  source: JSON.parse(
+    readFileSync(path.join(cwd, "vendor/provenance.json"), "utf8"),
+  ),
   node: process.version,
   repeats,
   parallelisms,

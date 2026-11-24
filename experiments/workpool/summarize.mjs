@@ -35,6 +35,7 @@ for (const sample of samples)
     errors: 0,
     wrappers: 0,
     separateCompletions: 0,
+    totalCompletions: 0,
     scheduledSuccessCallbacks: 0,
     databaseReadBytes: 0,
     databaseWriteBytes: 0,
@@ -69,6 +70,12 @@ for await (const entry of readLogs(createReadStream(logsPath), logsPath)) {
   const x = sample.executions;
   if (entry.willRetry) x.retries++;
   if (entry.error && !entry.willRetry) x.errors++;
+  if (
+    entry.identifier === "complete:complete" &&
+    !entry.willRetry &&
+    !entry.error
+  )
+    x.totalCompletions++;
   if (entry.caller !== "Scheduler" || entry.willRetry || entry.error) continue;
   x.scheduledCommits++;
   x.databaseReadBytes += entry.usageStats?.databaseReadBytes ?? 0;
@@ -108,7 +115,8 @@ for (const sample of samples) {
       ? 1
       : sample.workload === "inline"
         ? 1
-        : sample.workload === "action"
+        : (sample.workload === "action" || sample.workload === "query") &&
+            sample.mode !== "allMutations"
           ? sample.steps + 1
           : 2 * sample.steps + 1);
   assert.equal(
@@ -123,13 +131,13 @@ for (const sample of samples) {
         ? sample.workload === "pool" || sample.workload === "inline"
           ? 0
           : sample.count * sample.steps
-        : sample.workload === "action"
-          ? sample.count * (sample.steps + 1)
+        : sample.workload === "query"
+          ? sample.count * (2 * sample.steps + 1)
           : expectedWrappers;
-  // Action completion has a different path; assert mutation-only workloads.
+  // Count nested query completions too; these are not scheduled executions.
   if (sample.workload !== "action")
     assert.equal(
-      sample.executions.separateCompletions,
+      sample.executions.totalCompletions,
       expectedCompletions,
       `Unexpected completion count: ${sample.run}`,
     );
@@ -179,6 +187,8 @@ for (const workload of results.workloads) {
   for (const parallelism of results.parallelisms) {
     for (const [control, treatment] of [
       ["baseline", "filtered"],
+      ["baseline", "allMutations"],
+      ["prFiltered", "allMutations"],
       ["prFiltered", "transactional"],
       ["filtered", "transactional"],
       ["transactional", "allMutations"],

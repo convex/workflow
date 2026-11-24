@@ -30,6 +30,7 @@ type Mode = Infer<typeof modeValidator>;
 const workloadValidator = v.union(
   v.literal("pool"),
   v.literal("mutation"),
+  v.literal("query"),
   v.literal("action"),
   v.literal("inline"),
 );
@@ -51,11 +52,17 @@ function defineFlow(component: WorkflowComponent) {
       for (let i = 0; i < args.steps; i++) {
         const fnArgs = { run: args.run, index: args.index, step: i };
         sum +=
-          args.workload === "action"
-            ? await step.runAction(internal.benchmark.actionStep, fnArgs)
-            : await step.runMutation(internal.benchmark.mutationStep, fnArgs, {
-                inline: args.workload === "inline",
-              });
+          args.workload === "query"
+            ? await step.runQuery(internal.benchmark.queryStep, fnArgs)
+            : args.workload === "action"
+              ? await step.runAction(internal.benchmark.actionStep, fnArgs)
+              : await step.runMutation(
+                  internal.benchmark.mutationStep,
+                  fnArgs,
+                  {
+                    inline: args.workload === "inline",
+                  },
+                );
       }
       return sum;
     });
@@ -73,6 +80,21 @@ export const mutationStep = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("writes", args);
     return args.step + 1;
+  },
+});
+
+export const queryStep = internalQuery({
+  args: { run: v.string(), index: v.number(), step: v.number() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const input = await ctx.db
+      .query("inputs")
+      .withIndex("by_run_index", (q) =>
+        q.eq("run", args.run).eq("index", args.index),
+      )
+      .unique();
+    if (!input) throw new Error("Missing query input");
+    return input.value + args.step;
   },
 });
 
@@ -150,9 +172,7 @@ function completionOptions(
 > {
   return {
     onComplete: internal.benchmark.ignoredSuccess,
-    ...(mode !== "baseline"
-      ? { onCompleteExcludeKinds: ["success"] as const }
-      : {}),
+    onCompleteExcludeKinds: ["success"],
     ...(mode === "transactional" || mode === "allMutations"
       ? { completeTransactionally: true }
       : {}),
@@ -228,6 +248,8 @@ export const start = internalMutation({
         },
       });
       for (let index = 0; index < args.count; index++) {
+        if (args.workload === "query")
+          await ctx.db.insert("inputs", { run: args.run, index, value: 1 });
         ids.push(
           await manager.start(
             ctx,
@@ -297,7 +319,8 @@ export const verify = internalQuery({
       .withIndex("by_run", (q) => q.eq("run", args.run))
       .take(5001);
     if (
-      writes.length !== args.count * args.steps ||
+      writes.length !==
+        (args.workload === "query" ? 0 : args.count * args.steps) ||
       new Set(writes.map((w) => `${w.index}/${w.step}`)).size !== writes.length
     )
       throw new Error("Missing or duplicate step writes");

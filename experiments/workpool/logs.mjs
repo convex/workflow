@@ -17,7 +17,7 @@ export async function* readLogs(input, source) {
 }
 
 export function expectedSuccessCallbacks(sample) {
-  return sample.mode === "baseline"
+  return sample.mode === "baseline" && sample.legacyCallbacks === true
     ? sample.count *
         (sample.workload === "pool" || sample.workload === "inline"
           ? 1

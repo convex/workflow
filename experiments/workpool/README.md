@@ -1,59 +1,47 @@
-# Workpool callback exclusion and transactional completion experiment
+# Transactional completion with current Workflow and workpool
 
 See [RESULTS.md](RESULTS.md) for the measured comparison.
 
-This is an isolated Convex app for benchmarking this checkout's actual workflow
-implementation against workpool
-[PR #238](https://github.com/get-convex/workpool/pull/238). The library and
-example app continue using the released `@convex-dev/workpool` dependency. The
-experimental package is installed as `@convex-dev/workpool-transactional`,
-pinned to the measured PR commit `bec8e66`. The lockfile records its tarball
-integrity.
+This isolated Convex app benchmarks the current Workflow checkout (0.5.0,
+rebased onto main) with released workpool 0.5.0 and transactional completion
+from workpool PRs [#238](https://github.com/convex/workpool/pull/238) and
+[#239](https://github.com/convex/workpool/pull/239), rebased onto workpool main.
+The library and example retain their released dependencies and peer ranges.
 
 ## Variants
 
-| Mode            | Workpool             | Handler success callback | Transactional completion             |
-| --------------- | -------------------- | ------------------------ | ------------------------------------ |
-| `baseline`      | Released 0.4.12      | Called, then ignored     | Off                                  |
-| `filtered`      | Released 0.4.12      | Excluded                 | Off                                  |
-| `prFiltered`    | PR #238 at `bec8e66` | Excluded                 | Off                                  |
-| `transactional` | PR #238 at `bec8e66` | Excluded                 | Workflow handlers                    |
-| `allMutations`  | PR #238 at `bec8e66` | Excluded                 | Workflow handlers and mutation steps |
+| Mode            | Workpool       | Transactional completion                   |
+| --------------- | -------------- | ------------------------------------------ |
+| `baseline`      | Released 0.5.0 | Off                                        |
+| `prFiltered`    | Rebased PRs    | Off                                        |
+| `transactional` | Rebased PRs    | Workflow handlers                          |
+| `allMutations`  | Rebased PRs    | Workflow handlers and mutation/query steps |
 
-Compare `baseline` with `filtered` to isolate success callback exclusion on the
-same released package. Compare `prFiltered` with `transactional` to isolate
-transactional handler completion within the PR package. `filtered` vs.
-`transactional` measures the combined effect of switching packages and enabling
-transactions. The PR tarball still declares version 0.4.11; its commit and
-integrity identify the actual code. Both packages use batch-worker 0.2.2.
+All modes retain current Workflow's exclusion of already-ignored handler success
+callbacks. `filtered` is retained as an alias of the released baseline for older
+commands, but is omitted from the default matrix. Compare `prFiltered` against
+`allMutations` to isolate transactional completion within the same package, and
+`baseline` against `allMutations` for the release impact. `transactional`
+isolates how much comes from handlers alone.
 
-The base PR already sets `onCompleteExcludeKinds: ["success"]` for async
-workflow start, async restart, and handler resume, where success is already
-ignored. `prepare.mjs` copies `src/` into ignored `generated/` directories and:
-
-- Removes those three exclusion options only for `baseline`.
-- Keeps `filtered` on the released package with no source changes.
-- Switches the workpool component and client imports for the three PR variants.
-- Adds `completeTransactionally: true` at those sites for the transactional
-  variants.
-- Also enables transactional completion in the journal's `enqueueMutation` case
-  for `allMutations`, preserving its success callback and result.
-
-Query/action callbacks are retained. Cleanup and retry/restart throughput are
-not benchmarked. The workflow tests exercise async start and repeated resume. No
-generated fork is checked in; transforms fail if their source anchors change.
+`prepare.mjs` generates components from this checkout's actual source. It
+preserves success results for steps and fails if transformation anchors change.
+The `allMutations` name is retained for command compatibility; it now enables
+both mutation and query step completion. Actions remain nontransactional. See
+[vendor/README.md](vendor/README.md) for the exact rebased workpool source,
+patch, packaged artifact, and reproduction instructions.
 
 ## Run
 
 Use Node 22+ and install dependencies at the repository root with `npm ci`. The
 benchmark has its own `convex.json`; use a dedicated development deployment. For
-example, from the repository root:
+example, from the repository root (replace `<team>` and `<project>`):
 
 ```sh
-npx convex deployment create dev/workpool-benchmark --type dev --expiration 'in 7 days'
+npx convex deployment create "<team>:<project>:dev/workpool-benchmark" --type dev --expiration 'in 7 days'
 npx convex deployment token create workpool-benchmark --deployment <new-deployment-name> --save-env experiments/workpool/.env.local
 npm run bench:workpool:push
-npm run bench:workpool -- --repeats=3 --parallelism=25,100 --jobs=500 --flows=100 --steps=5
+npm run bench:workpool -- --repeats=3 --parallelism=25,100 --workloads=mutation,query --flows=100 --steps=5
 node experiments/workpool/summarize.mjs experiments/workpool/results.local.json
 ```
 
@@ -63,8 +51,8 @@ all generated source. Its local `node_modules` symlink reuses root dependencies.
 Tokens and generated code are gitignored.
 
 Runner options use `--name=value` syntax. `--repeats` must be a positive safe
-integer (default: 3). `--workloads=pool,mutation,action,inline` selects
-workloads; the default is `pool,mutation`. `--modes=baseline,transactional`
+integer (default: 3). `--workloads=pool,mutation,query,action,inline` selects
+workloads; the default is `mutation,query`. `--modes=baseline,transactional`
 selects a subset. `--output=path.json` selects the result artifact. Matching
 `path.logs.jsonl` contains the raw Convex execution stream.
 
@@ -85,11 +73,12 @@ measured workload.
 - Direct pool jobs use a single batch enqueue, each writing an independent
   completion row. The success callback returns immediately when called.
 - By default, measured workflow trials asynchronously start 100 independent
-  workflows, each awaiting five mutation steps in sequence (`--flows` and
-  `--steps` override these counts). Every step inserts an independent row and
-  returns a number used in the workflow's final sum. No shared counters create
-  artificial contention. The `inline` workload runs those steps inline; `action`
-  wraps the same write in an action.
+  workflows, each awaiting five steps in sequence (`--flows` and `--steps`
+  override these counts). Mutation steps insert independent rows. Query steps
+  read a seeded row per workflow. Both return numbers used in the workflow's
+  final sum; queries are verified to produce no step writes. No shared counters
+  create artificial contention. The `inline` workload runs those steps inline;
+  `action` wraps the same write in an action.
 - `admissionMs` measures the enqueue/start call separately. `executionMs` runs
   from that call returning in the server action to the final completion-row
   timestamp. `elapsedMs` includes admission from the successful start mutation's
@@ -124,13 +113,15 @@ deployment. They measure scheduling overhead under this load, not production
 capacity or application workloads with expensive I/O. Shared-cloud variation,
 admission cost, callback writes, and larger transactions can affect the result.
 Transactional mutation-step completion also changes rollback semantics: a
-success callback failure rolls back the step's writes. Successful throughput
-tests do not establish full migration or failure-recovery compatibility.
+success callback failure rolls back the step's writes. Transactional query reads
+use independent snapshots and may be stale when completion commits. Successful
+throughput tests do not establish full migration or failure-recovery
+compatibility.
 
 ## Earlier experiment
 
 [historical/RESULTS.md](historical/RESULTS.md) and its adjacent JSON retain the
 previous measurements against released workpool 0.4.7 and PR commit `14eabf7`.
-Their API and mode meanings differ from this experiment. They are historical
-observations, not the results of the current harness or evidence for the
-isolated effect of exclusion on 0.4.12.
+The September 0.4.12 comparison is retained in
+[historical/RESULTS-september-0.4.12.md](historical/RESULTS-september-0.4.12.md).
+Versions and mode meanings differ; do not combine those results with this run.

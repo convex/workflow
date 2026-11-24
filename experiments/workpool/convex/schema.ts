@@ -2,6 +2,11 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  inputs: defineTable({
+    run: v.string(),
+    index: v.number(),
+    value: v.number(),
+  }).index("by_run_index", ["run", "index"]),
   // Independent rows avoid introducing a shared completion-counter bottleneck.
   completions: defineTable({
     run: v.string(),

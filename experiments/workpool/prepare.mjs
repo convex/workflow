@@ -68,34 +68,34 @@ for (const mode of modes) {
     const expected = name === "pool.ts" ? 1 : 2;
     if (source.split(needle).length - 1 !== expected)
       throw new Error(`Update benchmark transform for ${name}`);
-    // The base PR already excludes ignored success callbacks. Undo only that
-    // option for the released control; preserve it for every other variant.
-    const transformed =
-      mode === "baseline"
-        ? source.replaceAll(needle, "")
-        : ["transactional", "allMutations"].includes(mode)
-          ? source.replaceAll(
-              needle,
-              `${needle} completeTransactionally: true,`,
-            )
-          : source;
+    // Current Workflow already excludes ignored handler success callbacks.
+    // Preserve that baseline and add only transactional completion.
+    const transformed = ["transactional", "allMutations"].includes(mode)
+      ? source.replaceAll(needle, `${needle} completeTransactionally: true,`)
+      : source;
     await writeFile(file, transformed);
   }
   if (mode === "allMutations") {
     const file = path.join(dest, "component/journal.ts");
     const source = await readFile(file, "utf8");
-    // Locate only the mutation case. Query/action success callbacks must remain.
-    const start = source.indexOf("workId = await workpool.enqueueMutation(");
-    const end = source.indexOf("break;", start);
+    // Enable query and mutation cases, retaining their result callbacks.
+    // Actions and the separate sleep path retain their existing behavior.
+    const start = source.indexOf("switch (step.functionType)");
+    const end = source.indexOf('case "action"', start);
     if (start < 0 || end < 0)
       throw new Error("Update benchmark journal transform");
     const section = source.slice(start, end);
-    if (!section.includes("{ context, onComplete, name, ...schedulerOptions }"))
+    if (
+      section.split("{ context, onComplete, name, ...schedulerOptions }")
+        .length -
+        1 !==
+      2
+    )
       throw new Error("Update benchmark mutation enqueue options transform");
     await writeFile(
       file,
       source.slice(0, start) +
-        section.replace(
+        section.replaceAll(
           "{ context, onComplete, name, ...schedulerOptions }",
           "{ context, onComplete, name, ...schedulerOptions, completeTransactionally: true }",
         ) +

@@ -1,0 +1,4362 @@
+{
+  "date": "2026-09-12T02:42:24.325Z",
+  "node": "v22.22.2",
+  "repeats": 3,
+  "parallelisms": [
+    25,
+    100
+  ],
+  "workloads": [
+    "pool",
+    "mutation"
+  ],
+  "modes": [
+    "baseline",
+    "filtered",
+    "prFiltered",
+    "transactional",
+    "allMutations"
+  ],
+  "samples": [
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25--1-baseline",
+      "round": -1,
+      "from": 1789180972770,
+      "to": 1789180974882,
+      "drainedAt": 1789180977247,
+      "admissionMs": 346,
+      "admittedAt": 1789180973761,
+      "elapsedMs": 823,
+      "executionMs": 478,
+      "p50Ms": 821,
+      "p95Ms": 823,
+      "throughput": 20.92050209205021,
+      "executions": {
+        "scheduledCommits": 44,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 10,
+        "databaseReadBytes": 60146,
+        "databaseWriteBytes": 11761,
+        "lastWorkCommitAt": 1789180974473.411,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 14,
+          "poolBaseline/worker:runMutationWrapper": 10,
+          "poolBaseline/complete:complete": 10,
+          "app/benchmark:ignoredSuccess": 10
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 1240.2649129999998,
+            "userExecutionMs": 38.723290999999996
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 428.54752799999994,
+            "userExecutionMs": 34.066902
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 628.325817,
+            "userExecutionMs": 56.566726
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 47.89827,
+            "userExecutionMs": 28.487096999999995
+          }
+        }
+      },
+      "committedExecutionMs": 712.410888671875,
+      "committedThroughput": 14.0368432866638,
+      "endToEndThroughput": 9.44812653292739
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25--1-filtered",
+      "round": -1,
+      "from": 1789180977248,
+      "to": 1789180978563,
+      "drainedAt": 1789180981215,
+      "admissionMs": 98,
+      "admittedAt": 1789180977965,
+      "elapsedMs": 257,
+      "executionMs": 161,
+      "p50Ms": 256,
+      "p95Ms": 257,
+      "throughput": 62.11180124223603,
+      "executions": {
+        "scheduledCommits": 33,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 58436,
+        "databaseWriteBytes": 11130,
+        "lastWorkCommitAt": 1789180978268.9768,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 13,
+          "poolBaseline/worker:runMutationWrapper": 10,
+          "poolBaseline/complete:complete": 10
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 955.8260769999999,
+            "userExecutionMs": 31.925990000000002
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 373.43845899999997,
+            "userExecutionMs": 28.697126
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 552.794946,
+            "userExecutionMs": 43.791386
+          }
+        }
+      },
+      "committedExecutionMs": 303.976806640625,
+      "committedThroughput": 32.89724670284614,
+      "endToEndThroughput": 24.87705717046554
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25--1-prFiltered",
+      "round": -1,
+      "from": 1789180981215,
+      "to": 1789180982619,
+      "drainedAt": 1789180985053,
+      "admissionMs": 118,
+      "admittedAt": 1789180982021,
+      "elapsedMs": 335,
+      "executionMs": 218,
+      "p50Ms": 334,
+      "p95Ms": 335,
+      "throughput": 45.87155963302752,
+      "executions": {
+        "scheduledCommits": 34,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 62856,
+        "databaseWriteBytes": 12331,
+        "lastWorkCommitAt": 1789180982460.3848,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 14,
+          "poolPr/worker:runMutationWrapper": 10,
+          "poolPr/complete:complete": 10
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 1208.193996,
+            "userExecutionMs": 39.232163
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 402.12067599999995,
+            "userExecutionMs": 46.58397
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 688.500886,
+            "userExecutionMs": 56.782018
+          }
+        }
+      },
+      "committedExecutionMs": 439.384765625,
+      "committedThroughput": 22.7590958593559,
+      "endToEndThroughput": 17.94092809262004
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25--1-transactional",
+      "round": -1,
+      "from": 1789180985053,
+      "to": 1789180986398,
+      "drainedAt": 1789180988894,
+      "admissionMs": 110,
+      "admittedAt": 1789180985780,
+      "elapsedMs": 295,
+      "executionMs": 187,
+      "p50Ms": 294,
+      "p95Ms": 295,
+      "throughput": 53.475935828877006,
+      "executions": {
+        "scheduledCommits": 24,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 66443,
+        "databaseWriteBytes": 11444,
+        "lastWorkCommitAt": 1789180986078.6006,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 14,
+          "poolPr/worker:runMutationWrapper": 10
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 884.5617479999999,
+            "userExecutionMs": 38.128742
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 772.017132,
+            "userExecutionMs": 53.212894000000006
+          }
+        }
+      },
+      "committedExecutionMs": 298.6005859375,
+      "committedThroughput": 33.48955250239562,
+      "endToEndThroughput": 24.47377792436551
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-0-baseline",
+      "round": 0,
+      "from": 1789180988895,
+      "to": 1789181003893,
+      "drainedAt": 1789181006999,
+      "admissionMs": 738,
+      "admittedAt": 1789180990258,
+      "elapsedMs": 12617,
+      "executionMs": 11881,
+      "p50Ms": 7709,
+      "p95Ms": 12184,
+      "throughput": 42.083999663328,
+      "executions": {
+        "scheduledCommits": 1553,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1969071,
+        "databaseWriteBytes": 454996,
+        "lastWorkCommitAt": 1789181002322.815,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 53,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 11157.527897999997,
+            "userExecutionMs": 170.31445699999995
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 18859.593164999995,
+            "userExecutionMs": 1008.3520979999995
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 38095.293303000006,
+            "userExecutionMs": 1896.371716000001
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 4345.484129999994,
+            "userExecutionMs": 1226.568216000001
+          }
+        }
+      },
+      "committedExecutionMs": 12064.81494140625,
+      "committedThroughput": 41.44282381688326,
+      "endToEndThroughput": 39.053911369360186
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-0-filtered",
+      "round": 0,
+      "from": 1789181007000,
+      "to": 1789181020535,
+      "drainedAt": 1789181023299,
+      "admissionMs": 512,
+      "admittedAt": 1789181008091,
+      "elapsedMs": 12324,
+      "executionMs": 11813,
+      "p50Ms": 6437,
+      "p95Ms": 11502,
+      "throughput": 42.32625074070939,
+      "executions": {
+        "scheduledCommits": 1052,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1962200,
+        "databaseWriteBytes": 433419,
+        "lastWorkCommitAt": 1789181020078.8257,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 52,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 10865.024854,
+            "userExecutionMs": 174.10936899999996
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 20131.88827400002,
+            "userExecutionMs": 1052.7054440000009
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 42019.270531999995,
+            "userExecutionMs": 1971.1894269999991
+          }
+        }
+      },
+      "committedExecutionMs": 11987.82568359375,
+      "committedThroughput": 41.708981528175535,
+      "endToEndThroughput": 40.00055782027898
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-0-prFiltered",
+      "round": 0,
+      "from": 1789181023299,
+      "to": 1789181040596,
+      "drainedAt": 1789181043142,
+      "admissionMs": 980,
+      "admittedAt": 1789181024881,
+      "elapsedMs": 16031,
+      "executionMs": 15054,
+      "p50Ms": 8015,
+      "p95Ms": 15028,
+      "throughput": 33.21376378371197,
+      "executions": {
+        "scheduledCommits": 1056,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2035196,
+        "databaseWriteBytes": 460281,
+        "lastWorkCommitAt": 1789181040188.3916,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 56,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 13904.488076000001,
+            "userExecutionMs": 220.228551
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 36420.414316999995,
+            "userExecutionMs": 1627.713696000002
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 53666.441095000024,
+            "userExecutionMs": 2145.727833
+          }
+        }
+      },
+      "committedExecutionMs": 15307.3916015625,
+      "committedThroughput": 32.66395823759827,
+      "endToEndThroughput": 30.698592643406048
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-0-transactional",
+      "round": 0,
+      "from": 1789181043142,
+      "to": 1789181058652,
+      "drainedAt": 1789181061395,
+      "admissionMs": 580,
+      "admittedAt": 1789181044287,
+      "elapsedMs": 14194,
+      "executionMs": 13616,
+      "p50Ms": 7070,
+      "p95Ms": 13830,
+      "throughput": 36.72150411280846,
+      "executions": {
+        "scheduledCommits": 553,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2310435,
+        "databaseWriteBytes": 451749,
+        "lastWorkCommitAt": 1789181058118.099,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 53,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 12849.341573999998,
+            "userExecutionMs": 215.81013100000004
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 56830.23119699999,
+            "userExecutionMs": 2460.364116999999
+          }
+        }
+      },
+      "committedExecutionMs": 13831.09912109375,
+      "committedThroughput": 36.15041694245775,
+      "endToEndThroughput": 34.69547990743761
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-1-baseline",
+      "round": 1,
+      "from": 1789181061395,
+      "to": 1789181076872,
+      "drainedAt": 1789181079553,
+      "admissionMs": 574,
+      "admittedAt": 1789181062578,
+      "elapsedMs": 14438,
+      "executionMs": 13865,
+      "p50Ms": 6769,
+      "p95Ms": 13834,
+      "throughput": 36.062026685899745,
+      "executions": {
+        "scheduledCommits": 1554,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1961744,
+        "databaseWriteBytes": 453097,
+        "lastWorkCommitAt": 1789181076590.1855,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 54,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 12644.690850000003,
+            "userExecutionMs": 203.37710599999997
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 30338.595142000024,
+            "userExecutionMs": 1178.698199000001
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 50349.543454000064,
+            "userExecutionMs": 2079.168400999997
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 9288.588505999996,
+            "userExecutionMs": 1373.7246910000008
+          }
+        }
+      },
+      "committedExecutionMs": 14012.185546875,
+      "committedThroughput": 35.683227168763125,
+      "endToEndThroughput": 34.27900998469897
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-1-transactional",
+      "round": 1,
+      "from": 1789181079553,
+      "to": 1789181091661,
+      "drainedAt": 1789181094534,
+      "admissionMs": 469,
+      "admittedAt": 1789181080630,
+      "elapsedMs": 10792,
+      "executionMs": 10325,
+      "p50Ms": 5831,
+      "p95Ms": 10343,
+      "throughput": 48.426150121065376,
+      "executions": {
+        "scheduledCommits": 551,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2184454,
+        "databaseWriteBytes": 394221,
+        "lastWorkCommitAt": 1789181091057.5435,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 51,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 8113.847307,
+            "userExecutionMs": 166.03749
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 41235.83452199993,
+            "userExecutionMs": 2167.581848
+          }
+        }
+      },
+      "committedExecutionMs": 10427.54345703125,
+      "committedThroughput": 47.94993202956657,
+      "endToEndThroughput": 45.88611076270827
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-1-prFiltered",
+      "round": 1,
+      "from": 1789181094535,
+      "to": 1789181109409,
+      "drainedAt": 1789181112928,
+      "admissionMs": 473,
+      "admittedAt": 1789181095635,
+      "elapsedMs": 13522,
+      "executionMs": 13051,
+      "p50Ms": 6008,
+      "p95Ms": 12969,
+      "throughput": 38.311240517967974,
+      "executions": {
+        "scheduledCommits": 1051,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1990877,
+        "databaseWriteBytes": 446208,
+        "lastWorkCommitAt": 1789181108877.9333,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 51,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 12260.683359999997,
+            "userExecutionMs": 159.40080799999998
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 22290.177512999973,
+            "userExecutionMs": 1382.1556499999995
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 35114.392247,
+            "userExecutionMs": 1746.1935000000012
+          }
+        }
+      },
+      "committedExecutionMs": 13242.933349609375,
+      "committedThroughput": 37.755985535844175,
+      "endToEndThroughput": 36.453953752570534
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-1-filtered",
+      "round": 1,
+      "from": 1789181112929,
+      "to": 1789181130428,
+      "drainedAt": 1789181133480,
+      "admissionMs": 1102,
+      "admittedAt": 1789181114629,
+      "elapsedMs": 16137,
+      "executionMs": 15037,
+      "p50Ms": 10366,
+      "p95Ms": 15663,
+      "throughput": 33.25131342688036,
+      "executions": {
+        "scheduledCommits": 1055,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1988275,
+        "databaseWriteBytes": 441149,
+        "lastWorkCommitAt": 1789181129795.6897,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 55,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 12536.609724000002,
+            "userExecutionMs": 166.811642
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 21512.677299999963,
+            "userExecutionMs": 1008.6425489999987
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 41488.00535400002,
+            "userExecutionMs": 1785.7313010000014
+          }
+        }
+      },
+      "committedExecutionMs": 15166.689697265625,
+      "committedThroughput": 32.96698290663546,
+      "endToEndThroughput": 30.733882648461723
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-2-prFiltered",
+      "round": 2,
+      "from": 1789181133480,
+      "to": 1789181147771,
+      "drainedAt": 1789181150807,
+      "admissionMs": 565,
+      "admittedAt": 1789181134668,
+      "elapsedMs": 12759,
+      "executionMs": 12195,
+      "p50Ms": 6311,
+      "p95Ms": 12309,
+      "throughput": 41.00041000410004,
+      "executions": {
+        "scheduledCommits": 1053,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1959911,
+        "databaseWriteBytes": 428976,
+        "lastWorkCommitAt": 1789181147071.262,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 53,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 10568.305616999996,
+            "userExecutionMs": 162.98046699999998
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 22620.881990000013,
+            "userExecutionMs": 1458.3173969999996
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 36843.45464999999,
+            "userExecutionMs": 1808.6481
+          }
+        }
+      },
+      "committedExecutionMs": 12403.261962890625,
+      "committedThroughput": 40.31197611531162,
+      "endToEndThroughput": 38.55566778576626
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-2-transactional",
+      "round": 2,
+      "from": 1789181150807,
+      "to": 1789181163654,
+      "drainedAt": 1789181167193,
+      "admissionMs": 519,
+      "admittedAt": 1789181151958,
+      "elapsedMs": 11509,
+      "executionMs": 10992,
+      "p50Ms": 6024,
+      "p95Ms": 10995,
+      "throughput": 45.48762736535662,
+      "executions": {
+        "scheduledCommits": 549,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2181200,
+        "databaseWriteBytes": 393793,
+        "lastWorkCommitAt": 1789181163165.7344,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 49,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 9815.200377,
+            "userExecutionMs": 160.08577100000008
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 42616.68284899997,
+            "userExecutionMs": 2133.966786000003
+          }
+        }
+      },
+      "committedExecutionMs": 11207.734375,
+      "committedThroughput": 44.61204943572728,
+      "endToEndThroughput": 42.637616237470205
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-2-baseline",
+      "round": 2,
+      "from": 1789181167194,
+      "to": 1789181179429,
+      "drainedAt": 1789181182539,
+      "admissionMs": 467,
+      "admittedAt": 1789181168265,
+      "elapsedMs": 11140,
+      "executionMs": 10675,
+      "p50Ms": 6365,
+      "p95Ms": 10729,
+      "throughput": 46.8384074941452,
+      "executions": {
+        "scheduledCommits": 1553,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1935202,
+        "databaseWriteBytes": 442834,
+        "lastWorkCommitAt": 1789181179160.333,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 53,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 9782.408645,
+            "userExecutionMs": 171.54525099999992
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 17311.229406,
+            "userExecutionMs": 1049.769458000001
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 38021.09063999998,
+            "userExecutionMs": 1971.9355830000013
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 2859.7037240000036,
+            "userExecutionMs": 1243.3654659999988
+          }
+        }
+      },
+      "committedExecutionMs": 10895.3330078125,
+      "committedThroughput": 45.8912086157876,
+      "endToEndThroughput": 44.00504717263704
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 25,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-25-2-filtered",
+      "round": 2,
+      "from": 1789181182539,
+      "to": 1789181196140,
+      "drainedAt": 1789181199125,
+      "admissionMs": 750,
+      "admittedAt": 1789181183916,
+      "elapsedMs": 12501,
+      "executionMs": 11753,
+      "p50Ms": 6270,
+      "p95Ms": 12115,
+      "throughput": 42.54232961796988,
+      "executions": {
+        "scheduledCommits": 1053,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1997361,
+        "databaseWriteBytes": 449286,
+        "lastWorkCommitAt": 1789181195770.6782,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 53,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 10887.540585,
+            "userExecutionMs": 167.86197499999997
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 18176.010867999994,
+            "userExecutionMs": 991.3963150000002
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 36463.29885399997,
+            "userExecutionMs": 1821.9298410000017
+          }
+        }
+      },
+      "committedExecutionMs": 11854.67822265625,
+      "committedThroughput": 42.17744173303813,
+      "endToEndThroughput": 39.667811519478235
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100--1-baseline",
+      "round": -1,
+      "from": 1789181199125,
+      "to": 1789181200425,
+      "drainedAt": 1789181203302,
+      "admissionMs": 91,
+      "admittedAt": 1789181199811,
+      "elapsedMs": 237,
+      "executionMs": 148,
+      "p50Ms": 234,
+      "p95Ms": 237,
+      "throughput": 67.56756756756756,
+      "executions": {
+        "scheduledCommits": 43,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 10,
+        "databaseReadBytes": 57556,
+        "databaseWriteBytes": 11150,
+        "lastWorkCommitAt": 1789181200118.7788,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 13,
+          "poolBaseline/worker:runMutationWrapper": 10,
+          "poolBaseline/complete:complete": 10,
+          "app/benchmark:ignoredSuccess": 10
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 929.641558,
+            "userExecutionMs": 32.004917999999996
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 262.950696,
+            "userExecutionMs": 17.617237
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 524.509386,
+            "userExecutionMs": 33.781132
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 44.831717999999995,
+            "userExecutionMs": 24.799649000000002
+          }
+        }
+      },
+      "committedExecutionMs": 307.77880859375,
+      "committedThroughput": 32.49086591013293,
+      "endToEndThroughput": 25.076558193410303
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100--1-filtered",
+      "round": -1,
+      "from": 1789181203303,
+      "to": 1789181204593,
+      "drainedAt": 1789181207564,
+      "admissionMs": 83,
+      "admittedAt": 1789181203964,
+      "elapsedMs": 239,
+      "executionMs": 158,
+      "p50Ms": 238,
+      "p95Ms": 239,
+      "throughput": 63.29113924050633,
+      "executions": {
+        "scheduledCommits": 33,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 58516,
+        "databaseWriteBytes": 11150,
+        "lastWorkCommitAt": 1789181204240.8718,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 13,
+          "poolBaseline/worker:runMutationWrapper": 10,
+          "poolBaseline/complete:complete": 10
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 957.170056,
+            "userExecutionMs": 31.504721000000004
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 269.94939,
+            "userExecutionMs": 17.478250999999997
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 484.808487,
+            "userExecutionMs": 40.272737
+          }
+        }
+      },
+      "committedExecutionMs": 276.871826171875,
+      "committedThroughput": 36.11779550943639,
+      "endToEndThroughput": 27.78767125610993
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100--1-prFiltered",
+      "round": -1,
+      "from": 1789181207564,
+      "to": 1789181208841,
+      "drainedAt": 1789181212007,
+      "admissionMs": 82,
+      "admittedAt": 1789181208238,
+      "elapsedMs": 218,
+      "executionMs": 138,
+      "p50Ms": 217,
+      "p95Ms": 218,
+      "throughput": 72.46376811594203,
+      "executions": {
+        "scheduledCommits": 33,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 10,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 58676,
+        "databaseWriteBytes": 11190,
+        "lastWorkCommitAt": 1789181208500.7104,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 13,
+          "poolPr/worker:runMutationWrapper": 10,
+          "poolPr/complete:complete": 10
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 852.136677,
+            "userExecutionMs": 33.099644
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 355.925617,
+            "userExecutionMs": 43.32855599999999
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 518.042682,
+            "userExecutionMs": 48.029705
+          }
+        }
+      },
+      "committedExecutionMs": 262.71044921875,
+      "committedThroughput": 38.064721177776,
+      "endToEndThroughput": 29.00985456827302
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100--1-transactional",
+      "round": -1,
+      "from": 1789181212007,
+      "to": 1789181213952,
+      "drainedAt": 1789181217256,
+      "admissionMs": 175,
+      "admittedAt": 1789181212781,
+      "elapsedMs": 407,
+      "executionMs": 233,
+      "p50Ms": 388,
+      "p95Ms": 407,
+      "throughput": 42.918454935622314,
+      "executions": {
+        "scheduledCommits": 24,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 10,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 67586,
+        "databaseWriteBytes": 11881,
+        "lastWorkCommitAt": 1789181213369.416,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 14,
+          "poolPr/worker:runMutationWrapper": 10
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 1498.854002,
+            "userExecutionMs": 37.040956
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 1845.0655699999998,
+            "userExecutionMs": 40.954374
+          }
+        }
+      },
+      "committedExecutionMs": 588.416015625,
+      "committedThroughput": 16.994778752543407,
+      "endToEndThroughput": 13.09901782950298
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-0-baseline",
+      "round": 0,
+      "from": 1789181217257,
+      "to": 1789181225409,
+      "drainedAt": 1789181228758,
+      "admissionMs": 442,
+      "admittedAt": 1789181218285,
+      "elapsedMs": 5802,
+      "executionMs": 5362,
+      "p50Ms": 2790,
+      "p95Ms": 5736,
+      "throughput": 93.24878776575905,
+      "executions": {
+        "scheduledCommits": 1521,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1871534,
+        "databaseWriteBytes": 434108,
+        "lastWorkCommitAt": 1789181224128.3423,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 21,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 5923.041320999999,
+            "userExecutionMs": 83.310738
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 29165.45642500001,
+            "userExecutionMs": 1122.9980780000014
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 61624.64433500006,
+            "userExecutionMs": 1997.7969379999993
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 2363.0900169999995,
+            "userExecutionMs": 1216.6391290000017
+          }
+        }
+      },
+      "committedExecutionMs": 5843.34228515625,
+      "committedThroughput": 85.56746731577613,
+      "endToEndThroughput": 79.55016247576886
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-0-filtered",
+      "round": 0,
+      "from": 1789181228758,
+      "to": 1789181240033,
+      "drainedAt": 1789181243481,
+      "admissionMs": 807,
+      "admittedAt": 1789181230170,
+      "elapsedMs": 9946,
+      "executionMs": 9141,
+      "p50Ms": 4862,
+      "p95Ms": 8387,
+      "throughput": 54.69861065528936,
+      "executions": {
+        "scheduledCommits": 1025,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2037118,
+        "databaseWriteBytes": 472036,
+        "lastWorkCommitAt": 1789181239462.2703,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 25,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 9317.694279,
+            "userExecutionMs": 106.65696300000002
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 105309.76859300002,
+            "userExecutionMs": 1265.4662429999996
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 115051.74305300009,
+            "userExecutionMs": 2137.586867
+          }
+        }
+      },
+      "committedExecutionMs": 9292.270263671875,
+      "committedThroughput": 53.80816375463698,
+      "endToEndThroughput": 49.508527541692985
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-0-prFiltered",
+      "round": 0,
+      "from": 1789181243482,
+      "to": 1789181254018,
+      "drainedAt": 1789181257377,
+      "admissionMs": 1410,
+      "admittedAt": 1789181245465,
+      "elapsedMs": 7936,
+      "executionMs": 6530,
+      "p50Ms": 4471,
+      "p95Ms": 7929,
+      "throughput": 76.5696784073507,
+      "executions": {
+        "scheduledCommits": 1019,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1928414,
+        "databaseWriteBytes": 437058,
+        "lastWorkCommitAt": 1789181252543.0386,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 19,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 7802.005125000001,
+            "userExecutionMs": 79.77711000000002
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 63909.12667399999,
+            "userExecutionMs": 1888.8192139999996
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 77349.427982,
+            "userExecutionMs": 2221.758929999998
+          }
+        }
+      },
+      "committedExecutionMs": 7078.03857421875,
+      "committedThroughput": 70.64103914624233,
+      "endToEndThroughput": 58.906424096455126
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-0-transactional",
+      "round": 0,
+      "from": 1789181257377,
+      "to": 1789181266715,
+      "drainedAt": 1789181269749,
+      "admissionMs": 441,
+      "admittedAt": 1789181258460,
+      "elapsedMs": 7764,
+      "executionMs": 7325,
+      "p50Ms": 3465,
+      "p95Ms": 7756,
+      "throughput": 68.25938566552901,
+      "executions": {
+        "scheduledCommits": 522,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2240161,
+        "databaseWriteBytes": 439322,
+        "lastWorkCommitAt": 1789181265989.175,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 22,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 7498.5245780000005,
+            "userExecutionMs": 95.055436
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 81738.77383300003,
+            "userExecutionMs": 2687.223798999997
+          }
+        }
+      },
+      "committedExecutionMs": 7529.175048828125,
+      "committedThroughput": 66.40833780027764,
+      "endToEndThroughput": 62.73387936109587
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-1-baseline",
+      "round": 1,
+      "from": 1789181269749,
+      "to": 1789181277896,
+      "drainedAt": 1789181281260,
+      "admissionMs": 496,
+      "admittedAt": 1789181271002,
+      "elapsedMs": 6905,
+      "executionMs": 6411,
+      "p50Ms": 3762,
+      "p95Ms": 6901,
+      "throughput": 77.99095304944626,
+      "executions": {
+        "scheduledCommits": 1522,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1873161,
+        "databaseWriteBytes": 434322,
+        "lastWorkCommitAt": 1789181277624.5847,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 22,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 6551.013959,
+            "userExecutionMs": 87.79349700000002
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 32166.466642000003,
+            "userExecutionMs": 1209.992072
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 66026.38358699999,
+            "userExecutionMs": 2104.5131109999993
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 4742.198177999999,
+            "userExecutionMs": 1300.4096419999985
+          }
+        }
+      },
+      "committedExecutionMs": 6622.584716796875,
+      "committedThroughput": 75.49922294415487,
+      "endToEndThroughput": 70.23868084623754
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-1-transactional",
+      "round": 1,
+      "from": 1789181281260,
+      "to": 1789181289435,
+      "drainedAt": 1789181293112,
+      "admissionMs": 653,
+      "admittedAt": 1789181282471,
+      "elapsedMs": 6225,
+      "executionMs": 5574,
+      "p50Ms": 3715,
+      "p95Ms": 6221,
+      "throughput": 89.7021887334051,
+      "executions": {
+        "scheduledCommits": 520,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2236907,
+        "databaseWriteBytes": 438894,
+        "lastWorkCommitAt": 1789181288211.1694,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 20,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 6398.794299000001,
+            "userExecutionMs": 87.17545999999999
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 71980.681363,
+            "userExecutionMs": 2580.964790999999
+          }
+        }
+      },
+      "committedExecutionMs": 5740.16943359375,
+      "committedThroughput": 87.1054427546688,
+      "endToEndThroughput": 78.20847002312878
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-1-prFiltered",
+      "round": 1,
+      "from": 1789181293113,
+      "to": 1789181300511,
+      "drainedAt": 1789181303981,
+      "admissionMs": 584,
+      "admittedAt": 1789181294291,
+      "elapsedMs": 6053,
+      "executionMs": 5471,
+      "p50Ms": 3291,
+      "p95Ms": 6049,
+      "throughput": 91.39097057210748,
+      "executions": {
+        "scheduledCommits": 1022,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1929161,
+        "databaseWriteBytes": 436322,
+        "lastWorkCommitAt": 1789181300004.463,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 22,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 5865.355101,
+            "userExecutionMs": 82.577188
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 39475.17297800001,
+            "userExecutionMs": 1628.6706390000008
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 57673.574682999926,
+            "userExecutionMs": 2009.1188330000011
+          }
+        }
+      },
+      "committedExecutionMs": 5713.462890625,
+      "committedThroughput": 87.51260130181831,
+      "endToEndThroughput": 79.39705381104308
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-1-filtered",
+      "round": 1,
+      "from": 1789181303981,
+      "to": 1789181310814,
+      "drainedAt": 1789181314200,
+      "admissionMs": 1042,
+      "admittedAt": 1789181305618,
+      "elapsedMs": 5750,
+      "executionMs": 4710,
+      "p50Ms": 3148,
+      "p95Ms": 5742,
+      "throughput": 106.15711252653928,
+      "executions": {
+        "scheduledCommits": 1021,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1919534,
+        "databaseWriteBytes": 434108,
+        "lastWorkCommitAt": 1789181310537.3923,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 21,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 5220.48386,
+            "userExecutionMs": 85.420134
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 28029.428007999984,
+            "userExecutionMs": 1131.4862690000014
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 53875.04934699997,
+            "userExecutionMs": 1963.4491769999993
+          }
+        }
+      },
+      "committedExecutionMs": 4919.392333984375,
+      "committedThroughput": 101.6385695741071,
+      "endToEndThroughput": 83.87302361390103
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-2-prFiltered",
+      "round": 2,
+      "from": 1789181314201,
+      "to": 1789181322480,
+      "drainedAt": 1789181326809,
+      "admissionMs": 795,
+      "admittedAt": 1789181315561,
+      "elapsedMs": 6236,
+      "executionMs": 5443,
+      "p50Ms": 2937,
+      "p95Ms": 6196,
+      "throughput": 91.86110600771633,
+      "executions": {
+        "scheduledCommits": 1021,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1927534,
+        "databaseWriteBytes": 436108,
+        "lastWorkCommitAt": 1789181321296.454,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 21,
+          "poolPr/worker:runMutationWrapper": 500,
+          "poolPr/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 6252.306106000001,
+            "userExecutionMs": 89.00339300000002
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 38622.00267399998,
+            "userExecutionMs": 1488.956245
+          },
+          "poolPr/complete:complete": {
+            "executionMs": 57221.102292000054,
+            "userExecutionMs": 1873.3826159999992
+          }
+        }
+      },
+      "committedExecutionMs": 5735.4541015625,
+      "committedThroughput": 87.17705540765915,
+      "endToEndThroughput": 76.564354059294
+    },
+    {
+      "mode": "transactional",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-2-transactional",
+      "round": 2,
+      "from": 1789181326809,
+      "to": 1789181334166,
+      "drainedAt": 1789181337745,
+      "admissionMs": 457,
+      "admittedAt": 1789181327876,
+      "elapsedMs": 5605,
+      "executionMs": 5150,
+      "p50Ms": 2845,
+      "p95Ms": 5550,
+      "throughput": 97.0873786407767,
+      "executions": {
+        "scheduledCommits": 521,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 2238534,
+        "databaseWriteBytes": 439108,
+        "lastWorkCommitAt": 1789181333333.6655,
+        "byFunction": {
+          "poolPr/batchWorker/loop:loop": 21,
+          "poolPr/worker:runMutationWrapper": 500
+        },
+        "timingsByFunction": {
+          "poolPr/batchWorker/loop:loop": {
+            "executionMs": 6587.082731999999,
+            "userExecutionMs": 84.803912
+          },
+          "poolPr/worker:runMutationWrapper": {
+            "executionMs": 76207.22443300002,
+            "userExecutionMs": 2657.472815999998
+          }
+        }
+      },
+      "committedExecutionMs": 5457.66552734375,
+      "committedThroughput": 91.61426208603706,
+      "endToEndThroughput": 84.5356339574028
+    },
+    {
+      "mode": "baseline",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-2-baseline",
+      "round": 2,
+      "from": 1789181337745,
+      "to": 1789181346475,
+      "drainedAt": 1789181349636,
+      "admissionMs": 712,
+      "admittedAt": 1789181339044,
+      "elapsedMs": 7383,
+      "executionMs": 6674,
+      "p50Ms": 3886,
+      "p95Ms": 7376,
+      "throughput": 74.91759065028468,
+      "executions": {
+        "scheduledCommits": 1522,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 500,
+        "databaseReadBytes": 1873161,
+        "databaseWriteBytes": 434322,
+        "lastWorkCommitAt": 1789181345944.8062,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 22,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500,
+          "app/benchmark:ignoredSuccess": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 6212.857346000001,
+            "userExecutionMs": 80.77745200000001
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 32138.522429000015,
+            "userExecutionMs": 1166.6027570000006
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 63217.44875900001,
+            "userExecutionMs": 2009.6154540000007
+          },
+          "app/benchmark:ignoredSuccess": {
+            "executionMs": 2334.5782820000004,
+            "userExecutionMs": 1234.897823999999
+          }
+        }
+      },
+      "committedExecutionMs": 6900.80615234375,
+      "committedThroughput": 72.45530289677575,
+      "endToEndThroughput": 65.67880358362538
+    },
+    {
+      "mode": "filtered",
+      "workload": "pool",
+      "maxParallelism": 100,
+      "count": 500,
+      "steps": 1,
+      "run": "2026-09-12T02-42-24-325Z-pool-100-2-filtered",
+      "round": 2,
+      "from": 1789181349636,
+      "to": 1789181357974,
+      "drainedAt": 1789181361913,
+      "admissionMs": 446,
+      "admittedAt": 1789181350749,
+      "elapsedMs": 6996,
+      "executionMs": 6552,
+      "p50Ms": 4208,
+      "p95Ms": 6987,
+      "throughput": 76.31257631257631,
+      "executions": {
+        "scheduledCommits": 1022,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 500,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 1921161,
+        "databaseWriteBytes": 434322,
+        "lastWorkCommitAt": 1789181357508.9163,
+        "byFunction": {
+          "poolBaseline/batchWorker/loop:loop": 22,
+          "poolBaseline/worker:runMutationWrapper": 500,
+          "poolBaseline/complete:complete": 500
+        },
+        "timingsByFunction": {
+          "poolBaseline/batchWorker/loop:loop": {
+            "executionMs": 6759.283095,
+            "userExecutionMs": 91.09444300000001
+          },
+          "poolBaseline/worker:runMutationWrapper": {
+            "executionMs": 31182.709008999995,
+            "userExecutionMs": 1158.2611149999993
+          },
+          "poolBaseline/complete:complete": {
+            "executionMs": 60277.20768599998,
+            "userExecutionMs": 2021.326629
+          }
+        }
+      },
+      "committedExecutionMs": 6759.916259765625,
+      "committedThroughput": 73.96541329601258,
+      "endToEndThroughput": 69.38742860387649
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25--1-baseline",
+      "round": -1,
+      "from": 1789181361914,
+      "to": 1789181370673,
+      "drainedAt": 1789181373045,
+      "admissionMs": 791,
+      "admittedAt": 1789181363300,
+      "elapsedMs": 7413,
+      "executionMs": 6623,
+      "p50Ms": 7094,
+      "p95Ms": 7413,
+      "throughput": 7.549448890231013,
+      "executions": {
+        "scheduledCommits": 375,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 60,
+        "databaseReadBytes": 890538,
+        "databaseWriteBytes": 262424,
+        "lastWorkCommitAt": 1789181370239.8552,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 45,
+          "baseline/workpool/worker:runMutationWrapper": 110,
+          "baseline/workpool/complete:complete": 110,
+          "baseline/pool:handlerOnComplete": 60,
+          "baseline/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 5483.086539000001,
+            "userExecutionMs": 136.985879
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 12274.804660999998,
+            "userExecutionMs": 220.923174
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 7727.020213999999,
+            "userExecutionMs": 447.23304299999995
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 1998.4254419999997,
+            "userExecutionMs": 174.05781399999998
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 4799.747722000001,
+            "userExecutionMs": 245.26017399999992
+          }
+        }
+      },
+      "committedExecutionMs": 6939.855224609375,
+      "committedThroughput": 7.20476124958563,
+      "endToEndThroughput": 6.467589748781824
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25--1-filtered",
+      "round": -1,
+      "from": 1789181373045,
+      "to": 1789181380159,
+      "drainedAt": 1789181382696,
+      "admissionMs": 707,
+      "admittedAt": 1789181374348,
+      "elapsedMs": 5768,
+      "executionMs": 5063,
+      "p50Ms": 5765,
+      "p95Ms": 5768,
+      "throughput": 9.875567845151096,
+      "executions": {
+        "scheduledCommits": 314,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 895854,
+        "databaseWriteBytes": 263841,
+        "lastWorkCommitAt": 1789181379575.9224,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 44,
+          "filtered/workpool/worker:runMutationWrapper": 110,
+          "filtered/workpool/complete:complete": 110,
+          "filtered/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 4277.940524000001,
+            "userExecutionMs": 135.347881
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 9762.883691999998,
+            "userExecutionMs": 243.79630100000006
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 6707.197735000001,
+            "userExecutionMs": 423.90762000000007
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 3944.962908,
+            "userExecutionMs": 250.1161579999999
+          }
+        }
+      },
+      "committedExecutionMs": 5227.92236328125,
+      "committedThroughput": 9.564028791089015,
+      "endToEndThroughput": 8.424710036536421
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25--1-prFiltered",
+      "round": -1,
+      "from": 1789181382696,
+      "to": 1789181389584,
+      "drainedAt": 1789181392094,
+      "admissionMs": 622,
+      "admittedAt": 1789181383884,
+      "elapsedMs": 5264,
+      "executionMs": 4644,
+      "p50Ms": 5008,
+      "p95Ms": 5264,
+      "throughput": 10.766580534022394,
+      "executions": {
+        "scheduledCommits": 317,
+        "retries": 9,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 911356,
+        "databaseWriteBytes": 268684,
+        "lastWorkCommitAt": 1789181388698.205,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 47,
+          "prFiltered/workpool/worker:runMutationWrapper": 110,
+          "prFiltered/workpool/complete:complete": 110,
+          "prFiltered/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 4569.547611999999,
+            "userExecutionMs": 132.345134
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 8873.063632,
+            "userExecutionMs": 340.5333530000001
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 5975.980421000002,
+            "userExecutionMs": 444.8538999999999
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 3952.0699380000005,
+            "userExecutionMs": 212.29710100000003
+          }
+        }
+      },
+      "committedExecutionMs": 4814.205078125,
+      "committedThroughput": 10.385930634154377,
+      "endToEndThroughput": 9.19759267383001
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25--1-transactional",
+      "round": -1,
+      "from": 1789181392095,
+      "to": 1789181399959,
+      "drainedAt": 1789181402495,
+      "admissionMs": 998,
+      "admittedAt": 1789181393662,
+      "elapsedMs": 6704,
+      "executionMs": 5707,
+      "p50Ms": 6563,
+      "p95Ms": 6704,
+      "throughput": 8.761170492377781,
+      "executions": {
+        "scheduledCommits": 255,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 50,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 940740,
+        "databaseWriteBytes": 267490,
+        "lastWorkCommitAt": 1789181399497.5256,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 45,
+          "transactional/workpool/worker:runMutationWrapper": 110,
+          "transactional/workpool/complete:complete": 50,
+          "transactional/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 5146.668139000002,
+            "userExecutionMs": 134.567342
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 11780.740750000003,
+            "userExecutionMs": 435.03414700000013
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 3494.5479720000003,
+            "userExecutionMs": 203.2572299999999
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 4771.793304999999,
+            "userExecutionMs": 239.54523900000007
+          }
+        }
+      },
+      "committedExecutionMs": 5835.525634765625,
+      "committedThroughput": 8.568208440747973,
+      "endToEndThroughput": 7.316867261845706
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25--1-allMutations",
+      "round": -1,
+      "from": 1789181402496,
+      "to": 1789181409722,
+      "drainedAt": 1789181412281,
+      "admissionMs": 834,
+      "admittedAt": 1789181403926,
+      "elapsedMs": 5759,
+      "executionMs": 4927,
+      "p50Ms": 5276,
+      "p95Ms": 5759,
+      "throughput": 10.148163182463975,
+      "executions": {
+        "scheduledCommits": 147,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 925921,
+        "databaseWriteBytes": 253873,
+        "lastWorkCommitAt": 1789181409056.408,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 37,
+          "allMutations/workpool/worker:runMutationWrapper": 110
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 3767.456123,
+            "userExecutionMs": 103.23811199999999
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 16038.840479000006,
+            "userExecutionMs": 508.0732260000002
+          }
+        }
+      },
+      "committedExecutionMs": 5130.407958984375,
+      "committedThroughput": 9.74581366622901,
+      "endToEndThroughput": 8.38306171271927
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-0-baseline",
+      "round": 0,
+      "from": 1789181412281,
+      "to": 1789181450941,
+      "drainedAt": 1789181453577,
+      "admissionMs": 4204,
+      "admittedAt": 1789181417091,
+      "elapsedMs": 35597,
+      "executionMs": 31394,
+      "p50Ms": 34427,
+      "p95Ms": 35418,
+      "throughput": 15.926610180289227,
+      "executions": {
+        "scheduledCommits": 3412,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 8029312,
+        "databaseWriteBytes": 2424093,
+        "lastWorkCommitAt": 1789181448663.5173,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 112,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 25865.491581999988,
+            "userExecutionMs": 403.881923
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 107746.56495199999,
+            "userExecutionMs": 2212.160669999997
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 80026.522588,
+            "userExecutionMs": 4182.928862999996
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 17381.548670000004,
+            "userExecutionMs": 1598.689147000001
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 53105.36353199994,
+            "userExecutionMs": 1903.9315800000015
+          }
+        }
+      },
+      "committedExecutionMs": 31572.517333984375,
+      "committedThroughput": 15.836557937741773,
+      "endToEndThroughput": 13.975647638710948
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-0-filtered",
+      "round": 0,
+      "from": 1789181453577,
+      "to": 1789181491141,
+      "drainedAt": 1789181495019,
+      "admissionMs": 3580,
+      "admittedAt": 1789181457747,
+      "elapsedMs": 34305,
+      "executionMs": 30727,
+      "p50Ms": 33477,
+      "p95Ms": 34302,
+      "throughput": 16.272333778110458,
+      "executions": {
+        "scheduledCommits": 2815,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8081768,
+        "databaseWriteBytes": 2429011,
+        "lastWorkCommitAt": 1789181488654.9043,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 115,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 25287.574949000013,
+            "userExecutionMs": 404.6665920000001
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 112512.02045899998,
+            "userExecutionMs": 2187.545679000001
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 78970.33289900012,
+            "userExecutionMs": 4068.678892
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 51219.20496900002,
+            "userExecutionMs": 2010.0890909999996
+          }
+        }
+      },
+      "committedExecutionMs": 30907.904296875,
+      "committedThroughput": 16.177091633176612,
+      "endToEndThroughput": 14.497836566001656
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-0-prFiltered",
+      "round": 0,
+      "from": 1789181495019,
+      "to": 1789181532003,
+      "drainedAt": 1789181535166,
+      "admissionMs": 3187,
+      "admittedAt": 1789181498910,
+      "elapsedMs": 34230,
+      "executionMs": 31045,
+      "p50Ms": 32959,
+      "p95Ms": 34003,
+      "throughput": 16.105653084232564,
+      "executions": {
+        "scheduledCommits": 2815,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8053697,
+        "databaseWriteBytes": 2406218,
+        "lastWorkCommitAt": 1789181530129.724,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 115,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 24337.487713,
+            "userExecutionMs": 401.6614890000002
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 111359.58000100004,
+            "userExecutionMs": 3149.985543000005
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 78831.27233600007,
+            "userExecutionMs": 4202.603425000003
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 52014.375884,
+            "userExecutionMs": 2064.8947710000007
+          }
+        }
+      },
+      "committedExecutionMs": 31219.72412109375,
+      "committedThroughput": 16.01551628261099,
+      "endToEndThroughput": 14.532043162268526
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-0-transactional",
+      "round": 0,
+      "from": 1789181535167,
+      "to": 1789181569049,
+      "drainedAt": 1789181572273,
+      "admissionMs": 3479,
+      "admittedAt": 1789181539357,
+      "elapsedMs": 30857,
+      "executionMs": 27379,
+      "p50Ms": 29745,
+      "p95Ms": 30560,
+      "throughput": 18.26217173746302,
+      "executions": {
+        "scheduledCommits": 2205,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8494587,
+        "databaseWriteBytes": 2459848,
+        "lastWorkCommitAt": 1789181566915.8281,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 105,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 23271.219360999996,
+            "userExecutionMs": 393.02391600000004
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 132191.97873200008,
+            "userExecutionMs": 4201.147301000004
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 38788.31828900005,
+            "userExecutionMs": 1991.6969599999989
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 57593.23453100002,
+            "userExecutionMs": 2173.371958000001
+          }
+        }
+      },
+      "committedExecutionMs": 27558.828125,
+      "committedThroughput": 18.14300657967473,
+      "endToEndThroughput": 16.109374598838816
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-0-allMutations",
+      "round": 0,
+      "from": 1789181572274,
+      "to": 1789181605891,
+      "drainedAt": 1789181608616,
+      "admissionMs": 3688,
+      "admittedAt": 1789181576556,
+      "elapsedMs": 29364,
+      "executionMs": 25677,
+      "p50Ms": 28383,
+      "p95Ms": 29363,
+      "throughput": 19.47267983019823,
+      "executions": {
+        "scheduledCommits": 1201,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8747509,
+        "databaseWriteBytes": 2455872,
+        "lastWorkCommitAt": 1789181602354.22,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 101,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 22105.05258599999,
+            "userExecutionMs": 360.02222400000005
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 164801.54076,
+            "userExecutionMs": 4666.070299999993
+          }
+        }
+      },
+      "committedExecutionMs": 25798.219970703125,
+      "committedThroughput": 19.381182134573937,
+      "endToEndThroughput": 16.957073524405274
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-1-baseline",
+      "round": 1,
+      "from": 1789181608617,
+      "to": 1789181647105,
+      "drainedAt": 1789181650073,
+      "admissionMs": 3596,
+      "admittedAt": 1789181612784,
+      "elapsedMs": 35075,
+      "executionMs": 31480,
+      "p50Ms": 33176,
+      "p95Ms": 34238,
+      "throughput": 15.88310038119441,
+      "executions": {
+        "scheduledCommits": 3413,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 8070459,
+        "databaseWriteBytes": 2441967,
+        "lastWorkCommitAt": 1789181644600.4512,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 113,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 26705.177399999993,
+            "userExecutionMs": 400.161028
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 108600.58398300014,
+            "userExecutionMs": 2213.112228000002
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 82148.27630399987,
+            "userExecutionMs": 4256.475515999997
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 19340.695458000013,
+            "userExecutionMs": 1653.4942819999997
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 48614.23418700003,
+            "userExecutionMs": 1969.981372
+          }
+        }
+      },
+      "committedExecutionMs": 31816.451171875,
+      "committedThroughput": 15.715140488138045,
+      "endToEndThroughput": 14.119327622175618
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-1-allMutations",
+      "round": 1,
+      "from": 1789181650074,
+      "to": 1789181688403,
+      "drainedAt": 1789181691330,
+      "admissionMs": 4124,
+      "admittedAt": 1789181654857,
+      "elapsedMs": 35371,
+      "executionMs": 31249,
+      "p50Ms": 34017,
+      "p95Ms": 35150,
+      "throughput": 16.000512016384523,
+      "executions": {
+        "scheduledCommits": 1202,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8764868,
+        "databaseWriteBytes": 2464015,
+        "lastWorkCommitAt": 1789181686240.7444,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 102,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 22167.525450999998,
+            "userExecutionMs": 378.1141739999999
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 169356.13703800016,
+            "userExecutionMs": 4708.406795999995
+          }
+        }
+      },
+      "committedExecutionMs": 31383.744384765625,
+      "committedThroughput": 15.931814695849717,
+      "endToEndThroughput": 14.081435153468151
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-1-transactional",
+      "round": 1,
+      "from": 1789181691331,
+      "to": 1789181728546,
+      "drainedAt": 1789181731577,
+      "admissionMs": 4564,
+      "admittedAt": 1789181696497,
+      "elapsedMs": 34240,
+      "executionMs": 29678,
+      "p50Ms": 32686,
+      "p95Ms": 34235,
+      "throughput": 16.84749646202574,
+      "executions": {
+        "scheduledCommits": 2201,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8479069,
+        "databaseWriteBytes": 2459522,
+        "lastWorkCommitAt": 1789181726308.9329,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 101,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 25258.732251000005,
+            "userExecutionMs": 362.2473460000001
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 128642.78168900001,
+            "userExecutionMs": 4111.195992999998
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 38165.06181400004,
+            "userExecutionMs": 1905.4022760000007
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 56118.21181599996,
+            "userExecutionMs": 2081.498773
+          }
+        }
+      },
+      "committedExecutionMs": 29811.932861328125,
+      "committedThroughput": 16.771807528407432,
+      "endToEndThroughput": 14.545059824761431
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-1-prFiltered",
+      "round": 1,
+      "from": 1789181731577,
+      "to": 1789181767977,
+      "drainedAt": 1789181770802,
+      "admissionMs": 4291,
+      "admittedAt": 1789181736505,
+      "elapsedMs": 33911,
+      "executionMs": 29621,
+      "p50Ms": 32790,
+      "p95Ms": 33908,
+      "throughput": 16.879916275615273,
+      "executions": {
+        "scheduledCommits": 2810,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8121946,
+        "databaseWriteBytes": 2447556,
+        "lastWorkCommitAt": 1789181766301.4795,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 110,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 24685.988539999988,
+            "userExecutionMs": 409.9460439999998
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 114540.19804099987,
+            "userExecutionMs": 3169.4324449999986
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 76467.170003,
+            "userExecutionMs": 4287.311003000007
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 48026.98010900006,
+            "userExecutionMs": 2100.1020800000006
+          }
+        }
+      },
+      "committedExecutionMs": 29796.4794921875,
+      "committedThroughput": 16.780505902755984,
+      "endToEndThroughput": 14.668142304701492
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-1-filtered",
+      "round": 1,
+      "from": 1789181770803,
+      "to": 1789181818280,
+      "drainedAt": 1789181821192,
+      "admissionMs": 4954,
+      "admittedAt": 1789181776407,
+      "elapsedMs": 44523,
+      "executionMs": 39570,
+      "p50Ms": 42995,
+      "p95Ms": 44252,
+      "throughput": 12.635835228708618,
+      "executions": {
+        "scheduledCommits": 2819,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8191545,
+        "databaseWriteBytes": 2473229,
+        "lastWorkCommitAt": 1789181816199.604,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 119,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 34601.784058000005,
+            "userExecutionMs": 476.65306699999996
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 156171.12728400016,
+            "userExecutionMs": 2453.9836089999994
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 114722.32051199982,
+            "userExecutionMs": 4646.903469999998
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 70349.722912,
+            "userExecutionMs": 2130.680586000001
+          }
+        }
+      },
+      "committedExecutionMs": 39792.60400390625,
+      "committedThroughput": 12.565149040030589,
+      "endToEndThroughput": 11.174032334528704
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-2-prFiltered",
+      "round": 2,
+      "from": 1789181821192,
+      "to": 1789181857479,
+      "drainedAt": 1789181860817,
+      "admissionMs": 4062,
+      "admittedAt": 1789181825997,
+      "elapsedMs": 33403,
+      "executionMs": 29343,
+      "p50Ms": 31768,
+      "p95Ms": 33399,
+      "throughput": 17.03983914391848,
+      "executions": {
+        "scheduledCommits": 2813,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8118866,
+        "databaseWriteBytes": 2442057,
+        "lastWorkCommitAt": 1789181855520.7786,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 113,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 24019.931844999996,
+            "userExecutionMs": 389.67673899999994
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 105084.6735850002,
+            "userExecutionMs": 3084.1706559999975
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 74032.38187699995,
+            "userExecutionMs": 4148.754379000005
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 48851.94720099998,
+            "userExecutionMs": 1972.4736520000001
+          }
+        }
+      },
+      "committedExecutionMs": 29523.778564453125,
+      "committedThroughput": 16.935501629930396,
+      "endToEndThroughput": 14.887253515367226
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-2-transactional",
+      "round": 2,
+      "from": 1789181860817,
+      "to": 1789181901863,
+      "drainedAt": 1789181906004,
+      "admissionMs": 5331,
+      "admittedAt": 1789181866813,
+      "elapsedMs": 38255,
+      "executionMs": 32925,
+      "p50Ms": 37017,
+      "p95Ms": 38249,
+      "throughput": 15.186028853454822,
+      "executions": {
+        "scheduledCommits": 2209,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8555399,
+        "databaseWriteBytes": 2481537,
+        "lastWorkCommitAt": 1789181899864.599,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 109,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 28815.422733000014,
+            "userExecutionMs": 413.2192960000001
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 176373.72691200022,
+            "userExecutionMs": 4549.635871000001
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 60014.38629800003,
+            "userExecutionMs": 2195.712270000001
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 76195.42791999996,
+            "userExecutionMs": 2416.607154999999
+          }
+        }
+      },
+      "committedExecutionMs": 33051.59912109375,
+      "committedThroughput": 15.12786108073351,
+      "endToEndThroughput": 13.026736371409962
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-2-allMutations",
+      "round": 2,
+      "from": 1789181906005,
+      "to": 1789181949087,
+      "drainedAt": 1789181952611,
+      "admissionMs": 3694,
+      "admittedAt": 1789181910342,
+      "elapsedMs": 37451,
+      "executionMs": 33759,
+      "p50Ms": 36501,
+      "p95Ms": 37253,
+      "throughput": 14.810865250747948,
+      "executions": {
+        "scheduledCommits": 1207,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8831547,
+        "databaseWriteBytes": 2486448,
+        "lastWorkCommitAt": 1789181944245.806,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 107,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 30449.511287,
+            "userExecutionMs": 420.30155099999996
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 244299.82000699997,
+            "userExecutionMs": 5191.871102
+          }
+        }
+      },
+      "committedExecutionMs": 33903.805908203125,
+      "committedThroughput": 14.747606842541048,
+      "endToEndThroughput": 13.298648363172424
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-2-baseline",
+      "round": 2,
+      "from": 1789181952612,
+      "to": 1789181992605,
+      "drainedAt": 1789181995825,
+      "admissionMs": 4230,
+      "admittedAt": 1789181957508,
+      "elapsedMs": 35271,
+      "executionMs": 31043,
+      "p50Ms": 34256,
+      "p95Ms": 35269,
+      "throughput": 16.106690719324806,
+      "executions": {
+        "scheduledCommits": 3412,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 8005530,
+        "databaseWriteBytes": 2409924,
+        "lastWorkCommitAt": 1789181988847.9507,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 112,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 25832.774033000005,
+            "userExecutionMs": 448.3386790000002
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 122118.07252700004,
+            "userExecutionMs": 2276.8877950000024
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 87070.040512,
+            "userExecutionMs": 4316.085975999999
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 18414.269872000023,
+            "userExecutionMs": 1662.94902
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 53611.25834999999,
+            "userExecutionMs": 2000.4696969999993
+          }
+        }
+      },
+      "committedExecutionMs": 31339.95068359375,
+      "committedThroughput": 15.954077434517043,
+      "endToEndThroughput": 14.056808918507146
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 25,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-25-2-filtered",
+      "round": 2,
+      "from": 1789181995825,
+      "to": 1789182048560,
+      "drainedAt": 1789182052091,
+      "admissionMs": 5831,
+      "admittedAt": 1789182002327,
+      "elapsedMs": 49727,
+      "executionMs": 43898,
+      "p50Ms": 48639,
+      "p95Ms": 49518,
+      "throughput": 11.390040548544352,
+      "executions": {
+        "scheduledCommits": 2814,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8118333,
+        "databaseWriteBytes": 2448676,
+        "lastWorkCommitAt": 1789182046435.164,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 114,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 37211.16293199999,
+            "userExecutionMs": 463.05638799999997
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 161614.3832849999,
+            "userExecutionMs": 2437.7248849999964
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 119730.71706800007,
+            "userExecutionMs": 4755.382336999999
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 67861.584798,
+            "userExecutionMs": 2247.394138999999
+          }
+        }
+      },
+      "committedExecutionMs": 44108.1640625,
+      "committedThroughput": 11.335769933464345,
+      "endToEndThroughput": 10.012182009579467
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100--1-baseline",
+      "round": -1,
+      "from": 1789182052092,
+      "to": 1789182061468,
+      "drainedAt": 1789182065004,
+      "admissionMs": 881,
+      "admittedAt": 1789182053624,
+      "elapsedMs": 7904,
+      "executionMs": 7025,
+      "p50Ms": 7882,
+      "p95Ms": 7904,
+      "throughput": 7.117437722419929,
+      "executions": {
+        "scheduledCommits": 373,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 60,
+        "databaseReadBytes": 886979,
+        "databaseWriteBytes": 262187,
+        "lastWorkCommitAt": 1789182061125.6262,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 43,
+          "baseline/workpool/worker:runMutationWrapper": 110,
+          "baseline/workpool/complete:complete": 110,
+          "baseline/pool:handlerOnComplete": 60,
+          "baseline/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 6667.745109999999,
+            "userExecutionMs": 132.555092
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 12671.085829999995,
+            "userExecutionMs": 242.97110500000005
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 9223.711495000005,
+            "userExecutionMs": 463.6490030000002
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 2048.070392,
+            "userExecutionMs": 175.53636400000005
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 5280.685241,
+            "userExecutionMs": 233.840386
+          }
+        }
+      },
+      "committedExecutionMs": 7501.626220703125,
+      "committedThroughput": 6.6652214505181675,
+      "endToEndThroughput": 5.9647178203546405
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100--1-filtered",
+      "round": -1,
+      "from": 1789182065004,
+      "to": 1789182070943,
+      "drainedAt": 1789182073657,
+      "admissionMs": 397,
+      "admittedAt": 1789182066081,
+      "elapsedMs": 4711,
+      "executionMs": 4315,
+      "p50Ms": 4709,
+      "p95Ms": 4711,
+      "throughput": 11.587485515643106,
+      "executions": {
+        "scheduledCommits": 310,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 870593,
+        "databaseWriteBytes": 255056,
+        "lastWorkCommitAt": 1789182070579.1707,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 40,
+          "filtered/workpool/worker:runMutationWrapper": 110,
+          "filtered/workpool/complete:complete": 110,
+          "filtered/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 3814.3902630000002,
+            "userExecutionMs": 113.07971599999999
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 9104.392759999995,
+            "userExecutionMs": 228.21055600000003
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 6038.925791000002,
+            "userExecutionMs": 426.51289900000023
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 3935.4606630000003,
+            "userExecutionMs": 255.83152700000002
+          }
+        }
+      },
+      "committedExecutionMs": 4498.170654296875,
+      "committedThroughput": 11.115629851045675,
+      "endToEndThroughput": 10.214148500851769
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100--1-prFiltered",
+      "round": -1,
+      "from": 1789182073657,
+      "to": 1789182079982,
+      "drainedAt": 1789182082822,
+      "admissionMs": 474,
+      "admittedAt": 1789182074750,
+      "elapsedMs": 5251,
+      "executionMs": 4778,
+      "p50Ms": 5087,
+      "p95Ms": 5251,
+      "throughput": 10.464629552113855,
+      "executions": {
+        "scheduledCommits": 314,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 110,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 891391,
+        "databaseWriteBytes": 261798,
+        "lastWorkCommitAt": 1789182079693.045,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 44,
+          "prFiltered/workpool/worker:runMutationWrapper": 110,
+          "prFiltered/workpool/complete:complete": 110,
+          "prFiltered/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 4471.243637999999,
+            "userExecutionMs": 137.40610600000002
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 10017.436608999998,
+            "userExecutionMs": 351.9805360000001
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 6341.876911,
+            "userExecutionMs": 501.87591300000014
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 3745.5320410000004,
+            "userExecutionMs": 241.31473699999998
+          }
+        }
+      },
+      "committedExecutionMs": 4943.044921875,
+      "committedThroughput": 10.11522265936316,
+      "endToEndThroughput": 9.230124675187946
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100--1-transactional",
+      "round": -1,
+      "from": 1789182082822,
+      "to": 1789182090290,
+      "drainedAt": 1789182093052,
+      "admissionMs": 1044,
+      "admittedAt": 1789182084535,
+      "elapsedMs": 6407,
+      "executionMs": 5364,
+      "p50Ms": 6288,
+      "p95Ms": 6407,
+      "throughput": 9.321401938851603,
+      "executions": {
+        "scheduledCommits": 250,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 50,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 887806,
+        "databaseWriteBytes": 246887,
+        "lastWorkCommitAt": 1789182090048.7773,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 40,
+          "transactional/workpool/worker:runMutationWrapper": 110,
+          "transactional/workpool/complete:complete": 50,
+          "transactional/pool:onComplete": 50
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 4190.240280000001,
+            "userExecutionMs": 125.52323899999999
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 11775.82806900001,
+            "userExecutionMs": 435.6075969999998
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 3021.920121,
+            "userExecutionMs": 233.86286900000002
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 4587.295194999999,
+            "userExecutionMs": 288.0234310000001
+          }
+        }
+      },
+      "committedExecutionMs": 5513.77734375,
+      "committedThroughput": 9.068193523751228,
+      "endToEndThroughput": 7.624534560883397
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 10,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100--1-allMutations",
+      "round": -1,
+      "from": 1789182093053,
+      "to": 1789182098965,
+      "drainedAt": 1789182101726,
+      "admissionMs": 513,
+      "admittedAt": 1789182094164,
+      "elapsedMs": 4645,
+      "executionMs": 4133,
+      "p50Ms": 4643,
+      "p95Ms": 4645,
+      "throughput": 12.097749818533753,
+      "executions": {
+        "scheduledCommits": 148,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 110,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 927823,
+        "databaseWriteBytes": 253536,
+        "lastWorkCommitAt": 1789182098424.3083,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 38,
+          "allMutations/workpool/worker:runMutationWrapper": 110
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 3444.8466400000007,
+            "userExecutionMs": 116.65872499999999
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 15471.325081000003,
+            "userExecutionMs": 505.85835
+          }
+        }
+      },
+      "committedExecutionMs": 4260.308349609375,
+      "committedThroughput": 11.73623970306855,
+      "endToEndThroughput": 10.474915161114987
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-0-baseline",
+      "round": 0,
+      "from": 1789182101727,
+      "to": 1789182128146,
+      "drainedAt": 1789182131356,
+      "admissionMs": 4229,
+      "admittedAt": 1789182106592,
+      "elapsedMs": 23511,
+      "executionMs": 19284,
+      "p50Ms": 22691,
+      "p95Ms": 23489,
+      "throughput": 25.92823065753993,
+      "executions": {
+        "scheduledCommits": 3336,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 7833570,
+        "databaseWriteBytes": 2388309,
+        "lastWorkCommitAt": 1789182126309.3232,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 36,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 17264.405770000005,
+            "userExecutionMs": 179.993358
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 210430.53291499979,
+            "userExecutionMs": 2489.675004
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 142815.86222699995,
+            "userExecutionMs": 4830.885467
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 27261.78248300003,
+            "userExecutionMs": 1789.1839650000002
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 86230.66237800004,
+            "userExecutionMs": 2423.4603950000005
+          }
+        }
+      },
+      "committedExecutionMs": 19717.3232421875,
+      "committedThroughput": 25.358411679846686,
+      "endToEndThroughput": 20.88003218461211
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-0-filtered",
+      "round": 0,
+      "from": 1789182131356,
+      "to": 1789182154890,
+      "drainedAt": 1789182157883,
+      "admissionMs": 4012,
+      "admittedAt": 1789182135984,
+      "elapsedMs": 19894,
+      "executionMs": 15883,
+      "p50Ms": 19111,
+      "p95Ms": 19889,
+      "throughput": 31.480198954857396,
+      "executions": {
+        "scheduledCommits": 2734,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7889718,
+        "databaseWriteBytes": 2404015,
+        "lastWorkCommitAt": 1789182152143.6448,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 34,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 14333.911306999997,
+            "userExecutionMs": 163.76821600000002
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 189807.67343599958,
+            "userExecutionMs": 2471.2880130000026
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 125833.15227299985,
+            "userExecutionMs": 4768.028900999996
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 83833.68590600001,
+            "userExecutionMs": 2556.6586160000006
+          }
+        }
+      },
+      "committedExecutionMs": 16159.644775390625,
+      "committedThroughput": 30.94127420185903,
+      "endToEndThroughput": 24.787269732709117
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-0-prFiltered",
+      "round": 0,
+      "from": 1789182157884,
+      "to": 1789182180784,
+      "drainedAt": 1789182183584,
+      "admissionMs": 3316,
+      "admittedAt": 1789182161886,
+      "elapsedMs": 19375,
+      "executionMs": 16061,
+      "p50Ms": 18822,
+      "p95Ms": 19373,
+      "throughput": 31.13131187348235,
+      "executions": {
+        "scheduledCommits": 2736,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7927606,
+        "databaseWriteBytes": 2408921,
+        "lastWorkCommitAt": 1789182178200.8286,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 36,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 14883.011763999999,
+            "userExecutionMs": 171.14571300000006
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 193377.95526699955,
+            "userExecutionMs": 3557.465964000001
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 128351.90821000013,
+            "userExecutionMs": 4812.987088000003
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 77649.21231100001,
+            "userExecutionMs": 2551.101579999998
+          }
+        }
+      },
+      "committedExecutionMs": 16314.82861328125,
+      "committedThroughput": 30.64696613441406,
+      "endToEndThroughput": 25.47014238928889
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-0-transactional",
+      "round": 0,
+      "from": 1789182183585,
+      "to": 1789182206372,
+      "drainedAt": 1789182209182,
+      "admissionMs": 3819,
+      "admittedAt": 1789182188062,
+      "elapsedMs": 18628,
+      "executionMs": 14811,
+      "p50Ms": 17947,
+      "p95Ms": 18623,
+      "throughput": 33.75869286341233,
+      "executions": {
+        "scheduledCommits": 2133,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8339501,
+        "databaseWriteBytes": 2436453,
+        "lastWorkCommitAt": 1789182203292.2283,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 33,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 14446.795674000003,
+            "userExecutionMs": 161.565002
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 216897.25064000007,
+            "userExecutionMs": 4572.650496999997
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 60253.91815899999,
+            "userExecutionMs": 2073.613286
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 81229.430361,
+            "userExecutionMs": 2462.259944000002
+          }
+        }
+      },
+      "committedExecutionMs": 15230.228271484375,
+      "committedThroughput": 32.829448849177936,
+      "endToEndThroughput": 26.24778247570648
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-0-allMutations",
+      "round": 0,
+      "from": 1789182209182,
+      "to": 1789182230318,
+      "drainedAt": 1789182233264,
+      "admissionMs": 3980,
+      "admittedAt": 1789182213783,
+      "elapsedMs": 17894,
+      "executionMs": 13916,
+      "p50Ms": 17427,
+      "p95Ms": 17892,
+      "throughput": 35.929864903707966,
+      "executions": {
+        "scheduledCommits": 1135,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8615901,
+        "databaseWriteBytes": 2435436,
+        "lastWorkCommitAt": 1789182227898.1753,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 35,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 12109.54415,
+            "userExecutionMs": 166.31439100000003
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 306443.1146860002,
+            "userExecutionMs": 5468.685168999998
+          }
+        }
+      },
+      "committedExecutionMs": 14115.17529296875,
+      "committedThroughput": 35.42286862346421,
+      "endToEndThroughput": 27.631674847288448
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-1-baseline",
+      "round": 1,
+      "from": 1789182233265,
+      "to": 1789182259361,
+      "drainedAt": 1789182262469,
+      "admissionMs": 3862,
+      "admittedAt": 1789182237773,
+      "elapsedMs": 22931,
+      "executionMs": 19070,
+      "p50Ms": 22918,
+      "p95Ms": 22927,
+      "throughput": 26.219192448872576,
+      "executions": {
+        "scheduledCommits": 3334,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 7815744,
+        "databaseWriteBytes": 2383012,
+        "lastWorkCommitAt": 1789182257346.2595,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 34,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 17201.155803999998,
+            "userExecutionMs": 155.09335600000003
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 196959.38212900044,
+            "userExecutionMs": 2474.227204999999
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 139644.82064600012,
+            "userExecutionMs": 4745.193969000002
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 28009.045065999995,
+            "userExecutionMs": 1758.9009539999995
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 84072.88795600004,
+            "userExecutionMs": 2312.2330110000025
+          }
+        }
+      },
+      "committedExecutionMs": 19573.259521484375,
+      "committedThroughput": 25.5450554595253,
+      "endToEndThroughput": 21.335372861632823
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-1-allMutations",
+      "round": 1,
+      "from": 1789182262469,
+      "to": 1789182285243,
+      "drainedAt": 1789182288056,
+      "admissionMs": 4200,
+      "admittedAt": 1789182267305,
+      "elapsedMs": 19322,
+      "executionMs": 15124,
+      "p50Ms": 18858,
+      "p95Ms": 18892,
+      "throughput": 33.06003702724147,
+      "executions": {
+        "scheduledCommits": 1135,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8626166,
+        "databaseWriteBytes": 2438927,
+        "lastWorkCommitAt": 1789182282553.1926,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 35,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 13733.853444000002,
+            "userExecutionMs": 159.01457
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 327508.566901,
+            "userExecutionMs": 5610.776459
+          }
+        }
+      },
+      "committedExecutionMs": 15248.192626953125,
+      "committedThroughput": 32.790771485676686,
+      "endToEndThroughput": 25.70932988945478
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-1-transactional",
+      "round": 1,
+      "from": 1789182288056,
+      "to": 1789182314635,
+      "drainedAt": 1789182318560,
+      "admissionMs": 3658,
+      "admittedAt": 1789182292357,
+      "elapsedMs": 22764,
+      "executionMs": 19107,
+      "p50Ms": 22008,
+      "p95Ms": 22762,
+      "throughput": 26.168419950803372,
+      "executions": {
+        "scheduledCommits": 2134,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8322874,
+        "databaseWriteBytes": 2426922,
+        "lastWorkCommitAt": 1789182311868.0322,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 34,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 17690.333613999996,
+            "userExecutionMs": 162.301769
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 240183.58342999947,
+            "userExecutionMs": 4694.0287640000015
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 66339.85274199999,
+            "userExecutionMs": 2173.721222000002
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 92431.97231599998,
+            "userExecutionMs": 2609.518724999999
+          }
+        }
+      },
+      "committedExecutionMs": 19511.0322265625,
+      "committedThroughput": 25.62652729973432,
+      "endToEndThroughput": 21.580530214238607
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-1-prFiltered",
+      "round": 1,
+      "from": 1789182318561,
+      "to": 1789182346919,
+      "drainedAt": 1789182349694,
+      "admissionMs": 4054,
+      "admittedAt": 1789182323265,
+      "elapsedMs": 24968,
+      "executionMs": 20916,
+      "p50Ms": 23679,
+      "p95Ms": 24960,
+      "throughput": 23.9051443870721,
+      "executions": {
+        "scheduledCommits": 2734,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7922656,
+        "databaseWriteBytes": 2411461,
+        "lastWorkCommitAt": 1789182344490.5745,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 34,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 18581.849658999996,
+            "userExecutionMs": 162.51325
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 205017.9625799996,
+            "userExecutionMs": 3459.1227479999975
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 145120.37864199994,
+            "userExecutionMs": 4993.728448999995
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 93232.36859600001,
+            "userExecutionMs": 2570.109017000002
+          }
+        }
+      },
+      "committedExecutionMs": 21225.574462890625,
+      "committedThroughput": 23.556488465090382,
+      "endToEndThroughput": 19.778813948548834
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-1-filtered",
+      "round": 1,
+      "from": 1789182349694,
+      "to": 1789182376158,
+      "drainedAt": 1789182379286,
+      "admissionMs": 4312,
+      "admittedAt": 1789182354662,
+      "elapsedMs": 21875,
+      "executionMs": 17565,
+      "p50Ms": 20950,
+      "p95Ms": 21866,
+      "throughput": 28.465698832906348,
+      "executions": {
+        "scheduledCommits": 2731,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7897992,
+        "databaseWriteBytes": 2407712,
+        "lastWorkCommitAt": 1789182372654.546,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 31,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 16982.348565000004,
+            "userExecutionMs": 167.27801799999997
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 189595.4212649997,
+            "userExecutionMs": 2416.7826720000007
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 131961.8525999999,
+            "userExecutionMs": 4689.979188999998
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 81395.57835600004,
+            "userExecutionMs": 2499.020080000004
+          }
+        }
+      },
+      "committedExecutionMs": 17992.5458984375,
+      "committedThroughput": 27.789285786589033,
+      "endToEndThroughput": 22.41695492375061
+    },
+    {
+      "mode": "prFiltered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-2-prFiltered",
+      "round": 2,
+      "from": 1789182379286,
+      "to": 1789182404306,
+      "drainedAt": 1789182407422,
+      "admissionMs": 3919,
+      "admittedAt": 1789182383887,
+      "elapsedMs": 21237,
+      "executionMs": 17320,
+      "p50Ms": 20456,
+      "p95Ms": 21234,
+      "throughput": 28.868360277136258,
+      "executions": {
+        "scheduledCommits": 2734,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7911208,
+        "databaseWriteBytes": 2407645,
+        "lastWorkCommitAt": 1789182401477.3887,
+        "byFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": 34,
+          "prFiltered/workpool/worker:runMutationWrapper": 1100,
+          "prFiltered/workpool/complete:complete": 1100,
+          "prFiltered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "prFiltered/workpool/batchWorker/loop:loop": {
+            "executionMs": 15917.273938,
+            "userExecutionMs": 160.08737800000003
+          },
+          "prFiltered/workpool/worker:runMutationWrapper": {
+            "executionMs": 199328.86011199997,
+            "userExecutionMs": 3581.2124579999995
+          },
+          "prFiltered/workpool/complete:complete": {
+            "executionMs": 131614.64967600006,
+            "userExecutionMs": 4925.354666000014
+          },
+          "prFiltered/pool:onComplete": {
+            "executionMs": 78454.02595200003,
+            "userExecutionMs": 2531.829913000002
+          }
+        }
+      },
+      "committedExecutionMs": 17590.388671875,
+      "committedThroughput": 28.424613539065355,
+      "endToEndThroughput": 23.24566298129078
+    },
+    {
+      "mode": "transactional",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-2-transactional",
+      "round": 2,
+      "from": 1789182407423,
+      "to": 1789182432778,
+      "drainedAt": 1789182435898,
+      "admissionMs": 3801,
+      "admittedAt": 1789182411896,
+      "elapsedMs": 22549,
+      "executionMs": 18750,
+      "p50Ms": 22053,
+      "p95Ms": 22547,
+      "throughput": 26.666666666666668,
+      "executions": {
+        "scheduledCommits": 2135,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 500,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8345790,
+        "databaseWriteBytes": 2437835,
+        "lastWorkCommitAt": 1789182430883.8804,
+        "byFunction": {
+          "transactional/workpool/batchWorker/loop:loop": 35,
+          "transactional/workpool/worker:runMutationWrapper": 1100,
+          "transactional/workpool/complete:complete": 500,
+          "transactional/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "transactional/workpool/batchWorker/loop:loop": {
+            "executionMs": 16280.514628000004,
+            "userExecutionMs": 169.178822
+          },
+          "transactional/workpool/worker:runMutationWrapper": {
+            "executionMs": 236851.53549799975,
+            "userExecutionMs": 4720.045113999993
+          },
+          "transactional/workpool/complete:complete": {
+            "executionMs": 66769.15672899994,
+            "userExecutionMs": 2135.8725890000005
+          },
+          "transactional/pool:onComplete": {
+            "executionMs": 91462.746655,
+            "userExecutionMs": 2574.804626999999
+          }
+        }
+      },
+      "committedExecutionMs": 18987.88037109375,
+      "committedThroughput": 26.332586377633614,
+      "endToEndThroughput": 21.940525021765364
+    },
+    {
+      "mode": "allMutations",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-2-allMutations",
+      "round": 2,
+      "from": 1789182435898,
+      "to": 1789182464888,
+      "drainedAt": 1789182468584,
+      "admissionMs": 3743,
+      "admittedAt": 1789182440256,
+      "elapsedMs": 25313,
+      "executionMs": 21571,
+      "p50Ms": 24820,
+      "p95Ms": 25311,
+      "throughput": 23.17926846228733,
+      "executions": {
+        "scheduledCommits": 1133,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 0,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 8633936,
+        "databaseWriteBytes": 2445707,
+        "lastWorkCommitAt": 1789182462017.0527,
+        "byFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": 33,
+          "allMutations/workpool/worker:runMutationWrapper": 1100
+        },
+        "timingsByFunction": {
+          "allMutations/workpool/batchWorker/loop:loop": {
+            "executionMs": 18872.247240000004,
+            "userExecutionMs": 158.35722900000002
+          },
+          "allMutations/workpool/worker:runMutationWrapper": {
+            "executionMs": 387049.92159800016,
+            "userExecutionMs": 5521.317081000012
+          }
+        }
+      },
+      "committedExecutionMs": 21761.052734375,
+      "committedThroughput": 22.976829572687514,
+      "endToEndThroughput": 19.604727343042523
+    },
+    {
+      "mode": "baseline",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-2-baseline",
+      "round": 2,
+      "from": 1789182468584,
+      "to": 1789182495296,
+      "drainedAt": 1789182498612,
+      "admissionMs": 3777,
+      "admittedAt": 1789182473034,
+      "elapsedMs": 22945,
+      "executionMs": 19169,
+      "p50Ms": 21653,
+      "p95Ms": 22943,
+      "throughput": 26.08378110490897,
+      "executions": {
+        "scheduledCommits": 3334,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 600,
+        "databaseReadBytes": 7829892,
+        "databaseWriteBytes": 2391273,
+        "lastWorkCommitAt": 1789182493035.4868,
+        "byFunction": {
+          "baseline/workpool/batchWorker/loop:loop": 34,
+          "baseline/workpool/worker:runMutationWrapper": 1100,
+          "baseline/workpool/complete:complete": 1100,
+          "baseline/pool:handlerOnComplete": 600,
+          "baseline/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "baseline/workpool/batchWorker/loop:loop": {
+            "executionMs": 17758.776366999995,
+            "userExecutionMs": 162.06789899999998
+          },
+          "baseline/workpool/worker:runMutationWrapper": {
+            "executionMs": 200028.41752199995,
+            "userExecutionMs": 2371.0372129999982
+          },
+          "baseline/workpool/complete:complete": {
+            "executionMs": 144703.1522020002,
+            "userExecutionMs": 4539.248891999999
+          },
+          "baseline/pool:handlerOnComplete": {
+            "executionMs": 29736.686450000052,
+            "userExecutionMs": 1625.2741999999992
+          },
+          "baseline/pool:onComplete": {
+            "executionMs": 80608.49164800004,
+            "userExecutionMs": 2292.607105000001
+          }
+        }
+      },
+      "committedExecutionMs": 20001.48681640625,
+      "committedThroughput": 24.998141617645857,
+      "endToEndThroughput": 21.027410358804627
+    },
+    {
+      "mode": "filtered",
+      "workload": "mutation",
+      "maxParallelism": 100,
+      "count": 100,
+      "steps": 5,
+      "run": "2026-09-12T02-42-24-325Z-mutation-100-2-filtered",
+      "round": 2,
+      "from": 1789182498612,
+      "to": 1789182538873,
+      "drainedAt": 1789182542888,
+      "admissionMs": 5917,
+      "admittedAt": 1789182505205,
+      "elapsedMs": 36472,
+      "executionMs": 30557,
+      "p50Ms": 35403,
+      "p95Ms": 36467,
+      "throughput": 16.362862846483623,
+      "executions": {
+        "scheduledCommits": 2727,
+        "retries": 0,
+        "errors": 0,
+        "wrappers": 1100,
+        "separateCompletions": 1100,
+        "scheduledSuccessCallbacks": 0,
+        "databaseReadBytes": 7876103,
+        "databaseWriteBytes": 2401775,
+        "lastWorkCommitAt": 1789182536136.1736,
+        "byFunction": {
+          "filtered/workpool/batchWorker/loop:loop": 27,
+          "filtered/workpool/worker:runMutationWrapper": 1100,
+          "filtered/workpool/complete:complete": 1100,
+          "filtered/pool:onComplete": 500
+        },
+        "timingsByFunction": {
+          "filtered/workpool/batchWorker/loop:loop": {
+            "executionMs": 25535.899896,
+            "userExecutionMs": 130.54429300000004
+          },
+          "filtered/workpool/worker:runMutationWrapper": {
+            "executionMs": 216468.90269399987,
+            "userExecutionMs": 2397.7693360000003
+          },
+          "filtered/workpool/complete:complete": {
+            "executionMs": 166367.46553399993,
+            "userExecutionMs": 4660.21680600001
+          },
+          "filtered/pool:onComplete": {
+            "executionMs": 109845.73960399989,
+            "userExecutionMs": 2474.902104
+          }
+        }
+      },
+      "committedExecutionMs": 30931.173583984375,
+      "committedThroughput": 16.16492172993046,
+      "endToEndThroughput": 13.569193568316209
+    }
+  ],
+  "packages": {
+    "convex": {
+      "version": "1.43.0",
+      "resolved": "https://registry.npmjs.org/convex/-/convex-1.43.0.tgz",
+      "integrity": "sha512-huZWEUZQYxIRG104o22ZI99HkviSEVltwezZRDi+pQDPrQbc5EoCPa4Y7pJDqUBQw9dc/iEEXj2/rLZg1j7Dww=="
+    },
+    "@convex-dev/workpool": {
+      "version": "0.4.12",
+      "resolved": "https://registry.npmjs.org/@convex-dev/workpool/-/workpool-0.4.12.tgz",
+      "integrity": "sha512-mJOtVds/vWWVdFUNhveXlQcfPFUmugZbJYjdjblgA2PpfaedtcwqYBVnLXEBI2QlspTR7HfAT3cTxJtdhVPUsg=="
+    },
+    "@convex-dev/workpool-transactional": {
+      "version": "0.4.11",
+      "resolved": "https://pkg.pr.new/get-convex/workpool/@convex-dev/workpool@bec8e66",
+      "integrity": "sha512-8R06rGRytr1ptTzUSx2Om65T9CXR/p1Z5t3jtpB7auM/unuIngBwNLT4PRm6A5pIMT65WrbVXTlGKx7U+lPuHA=="
+    }
+  },
+  "deployment": "https://aware-mandrill-795.convex.cloud",
+  "summary": [
+    {
+      "key": "pool/25/baseline",
+      "trials": 3,
+      "medianThroughput": 42.083999663328,
+      "medianCommittedThroughput": 41.44282381688326,
+      "minCommittedThroughput": 35.683227168763125,
+      "maxCommittedThroughput": 45.8912086157876,
+      "medianCommittedExecutionMs": 12064.81494140625,
+      "medianEndToEndThroughput": 39.053911369360186,
+      "medianAdmissionMs": 574,
+      "minThroughput": 36.062026685899745,
+      "maxThroughput": 46.8384074941452,
+      "medianElapsedMs": 12617,
+      "medianScheduledCommits": 1553,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/25/filtered",
+      "trials": 3,
+      "medianThroughput": 42.32625074070939,
+      "medianCommittedThroughput": 41.708981528175535,
+      "minCommittedThroughput": 32.96698290663546,
+      "maxCommittedThroughput": 42.17744173303813,
+      "medianCommittedExecutionMs": 11987.82568359375,
+      "medianEndToEndThroughput": 39.667811519478235,
+      "medianAdmissionMs": 750,
+      "minThroughput": 33.25131342688036,
+      "maxThroughput": 42.54232961796988,
+      "medianElapsedMs": 12501,
+      "medianScheduledCommits": 1053,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/25/prFiltered",
+      "trials": 3,
+      "medianThroughput": 38.311240517967974,
+      "medianCommittedThroughput": 37.755985535844175,
+      "minCommittedThroughput": 32.66395823759827,
+      "maxCommittedThroughput": 40.31197611531162,
+      "medianCommittedExecutionMs": 13242.933349609375,
+      "medianEndToEndThroughput": 36.453953752570534,
+      "medianAdmissionMs": 565,
+      "minThroughput": 33.21376378371197,
+      "maxThroughput": 41.00041000410004,
+      "medianElapsedMs": 13522,
+      "medianScheduledCommits": 1053,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/25/transactional",
+      "trials": 3,
+      "medianThroughput": 45.48762736535662,
+      "medianCommittedThroughput": 44.61204943572728,
+      "minCommittedThroughput": 36.15041694245775,
+      "maxCommittedThroughput": 47.94993202956657,
+      "medianCommittedExecutionMs": 11207.734375,
+      "medianEndToEndThroughput": 42.637616237470205,
+      "medianAdmissionMs": 519,
+      "minThroughput": 36.72150411280846,
+      "maxThroughput": 48.426150121065376,
+      "medianElapsedMs": 11509,
+      "medianScheduledCommits": 551,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/100/baseline",
+      "trials": 3,
+      "medianThroughput": 77.99095304944626,
+      "medianCommittedThroughput": 75.49922294415487,
+      "minCommittedThroughput": 72.45530289677575,
+      "maxCommittedThroughput": 85.56746731577613,
+      "medianCommittedExecutionMs": 6622.584716796875,
+      "medianEndToEndThroughput": 70.23868084623754,
+      "medianAdmissionMs": 496,
+      "minThroughput": 74.91759065028468,
+      "maxThroughput": 93.24878776575905,
+      "medianElapsedMs": 6905,
+      "medianScheduledCommits": 1522,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/100/filtered",
+      "trials": 3,
+      "medianThroughput": 76.31257631257631,
+      "medianCommittedThroughput": 73.96541329601258,
+      "minCommittedThroughput": 53.80816375463698,
+      "maxCommittedThroughput": 101.6385695741071,
+      "medianCommittedExecutionMs": 6759.916259765625,
+      "medianEndToEndThroughput": 69.38742860387649,
+      "medianAdmissionMs": 807,
+      "minThroughput": 54.69861065528936,
+      "maxThroughput": 106.15711252653928,
+      "medianElapsedMs": 6996,
+      "medianScheduledCommits": 1022,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/100/prFiltered",
+      "trials": 3,
+      "medianThroughput": 91.39097057210748,
+      "medianCommittedThroughput": 87.17705540765915,
+      "minCommittedThroughput": 70.64103914624233,
+      "maxCommittedThroughput": 87.51260130181831,
+      "medianCommittedExecutionMs": 5735.4541015625,
+      "medianEndToEndThroughput": 76.564354059294,
+      "medianAdmissionMs": 795,
+      "minThroughput": 76.5696784073507,
+      "maxThroughput": 91.86110600771633,
+      "medianElapsedMs": 6236,
+      "medianScheduledCommits": 1021,
+      "medianRetries": 0
+    },
+    {
+      "key": "pool/100/transactional",
+      "trials": 3,
+      "medianThroughput": 89.7021887334051,
+      "medianCommittedThroughput": 87.1054427546688,
+      "minCommittedThroughput": 66.40833780027764,
+      "maxCommittedThroughput": 91.61426208603706,
+      "medianCommittedExecutionMs": 5740.16943359375,
+      "medianEndToEndThroughput": 78.20847002312878,
+      "medianAdmissionMs": 457,
+      "minThroughput": 68.25938566552901,
+      "maxThroughput": 97.0873786407767,
+      "medianElapsedMs": 6225,
+      "medianScheduledCommits": 521,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/25/baseline",
+      "trials": 3,
+      "medianThroughput": 15.926610180289227,
+      "medianCommittedThroughput": 15.836557937741773,
+      "minCommittedThroughput": 15.715140488138045,
+      "maxCommittedThroughput": 15.954077434517043,
+      "medianCommittedExecutionMs": 31572.517333984375,
+      "medianEndToEndThroughput": 14.056808918507146,
+      "medianAdmissionMs": 4204,
+      "minThroughput": 15.88310038119441,
+      "maxThroughput": 16.106690719324806,
+      "medianElapsedMs": 35271,
+      "medianScheduledCommits": 3412,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/25/filtered",
+      "trials": 3,
+      "medianThroughput": 12.635835228708618,
+      "medianCommittedThroughput": 12.565149040030589,
+      "minCommittedThroughput": 11.335769933464345,
+      "maxCommittedThroughput": 16.177091633176612,
+      "medianCommittedExecutionMs": 39792.60400390625,
+      "medianEndToEndThroughput": 11.174032334528704,
+      "medianAdmissionMs": 4954,
+      "minThroughput": 11.390040548544352,
+      "maxThroughput": 16.272333778110458,
+      "medianElapsedMs": 44523,
+      "medianScheduledCommits": 2815,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/25/prFiltered",
+      "trials": 3,
+      "medianThroughput": 16.879916275615273,
+      "medianCommittedThroughput": 16.780505902755984,
+      "minCommittedThroughput": 16.01551628261099,
+      "maxCommittedThroughput": 16.935501629930396,
+      "medianCommittedExecutionMs": 29796.4794921875,
+      "medianEndToEndThroughput": 14.668142304701492,
+      "medianAdmissionMs": 4062,
+      "minThroughput": 16.105653084232564,
+      "maxThroughput": 17.03983914391848,
+      "medianElapsedMs": 33911,
+      "medianScheduledCommits": 2813,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/25/transactional",
+      "trials": 3,
+      "medianThroughput": 16.84749646202574,
+      "medianCommittedThroughput": 16.771807528407432,
+      "minCommittedThroughput": 15.12786108073351,
+      "maxCommittedThroughput": 18.14300657967473,
+      "medianCommittedExecutionMs": 29811.932861328125,
+      "medianEndToEndThroughput": 14.545059824761431,
+      "medianAdmissionMs": 4564,
+      "minThroughput": 15.186028853454822,
+      "maxThroughput": 18.26217173746302,
+      "medianElapsedMs": 34240,
+      "medianScheduledCommits": 2205,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/25/allMutations",
+      "trials": 3,
+      "medianThroughput": 16.000512016384523,
+      "medianCommittedThroughput": 15.931814695849717,
+      "minCommittedThroughput": 14.747606842541048,
+      "maxCommittedThroughput": 19.381182134573937,
+      "medianCommittedExecutionMs": 31383.744384765625,
+      "medianEndToEndThroughput": 14.081435153468151,
+      "medianAdmissionMs": 3694,
+      "minThroughput": 14.810865250747948,
+      "maxThroughput": 19.47267983019823,
+      "medianElapsedMs": 35371,
+      "medianScheduledCommits": 1202,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/100/baseline",
+      "trials": 3,
+      "medianThroughput": 26.08378110490897,
+      "medianCommittedThroughput": 25.358411679846686,
+      "minCommittedThroughput": 24.998141617645857,
+      "maxCommittedThroughput": 25.5450554595253,
+      "medianCommittedExecutionMs": 19717.3232421875,
+      "medianEndToEndThroughput": 21.027410358804627,
+      "medianAdmissionMs": 3862,
+      "minThroughput": 25.92823065753993,
+      "maxThroughput": 26.219192448872576,
+      "medianElapsedMs": 22945,
+      "medianScheduledCommits": 3334,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/100/filtered",
+      "trials": 3,
+      "medianThroughput": 28.465698832906348,
+      "medianCommittedThroughput": 27.789285786589033,
+      "minCommittedThroughput": 16.16492172993046,
+      "maxCommittedThroughput": 30.94127420185903,
+      "medianCommittedExecutionMs": 17992.5458984375,
+      "medianEndToEndThroughput": 22.41695492375061,
+      "medianAdmissionMs": 4312,
+      "minThroughput": 16.362862846483623,
+      "maxThroughput": 31.480198954857396,
+      "medianElapsedMs": 21875,
+      "medianScheduledCommits": 2731,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/100/prFiltered",
+      "trials": 3,
+      "medianThroughput": 28.868360277136258,
+      "medianCommittedThroughput": 28.424613539065355,
+      "minCommittedThroughput": 23.556488465090382,
+      "maxCommittedThroughput": 30.64696613441406,
+      "medianCommittedExecutionMs": 17590.388671875,
+      "medianEndToEndThroughput": 23.24566298129078,
+      "medianAdmissionMs": 3919,
+      "minThroughput": 23.9051443870721,
+      "maxThroughput": 31.13131187348235,
+      "medianElapsedMs": 21237,
+      "medianScheduledCommits": 2734,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/100/transactional",
+      "trials": 3,
+      "medianThroughput": 26.666666666666668,
+      "medianCommittedThroughput": 26.332586377633614,
+      "minCommittedThroughput": 25.62652729973432,
+      "maxCommittedThroughput": 32.829448849177936,
+      "medianCommittedExecutionMs": 18987.88037109375,
+      "medianEndToEndThroughput": 21.940525021765364,
+      "medianAdmissionMs": 3801,
+      "minThroughput": 26.168419950803372,
+      "maxThroughput": 33.75869286341233,
+      "medianElapsedMs": 22549,
+      "medianScheduledCommits": 2134,
+      "medianRetries": 0
+    },
+    {
+      "key": "mutation/100/allMutations",
+      "trials": 3,
+      "medianThroughput": 33.06003702724147,
+      "medianCommittedThroughput": 32.790771485676686,
+      "minCommittedThroughput": 22.976829572687514,
+      "maxCommittedThroughput": 35.42286862346421,
+      "medianCommittedExecutionMs": 15248.192626953125,
+      "medianEndToEndThroughput": 25.70932988945478,
+      "medianAdmissionMs": 3980,
+      "minThroughput": 23.17926846228733,
+      "maxThroughput": 35.929864903707966,
+      "medianElapsedMs": 19322,
+      "medianScheduledCommits": 1135,
+      "medianRetries": 0
+    }
+  ],
+  "comparisons": [
+    {
+      "workload": "pool",
+      "parallelism": 25,
+      "control": "baseline",
+      "treatment": "filtered",
+      "committedThroughputChangePct": 0.6422287063938992,
+      "endToEndThroughputChangePct": 1.5719300028925742,
+      "scheduledExecutionsChangePct": -32.195750160978754
+    },
+    {
+      "workload": "pool",
+      "parallelism": 25,
+      "control": "prFiltered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": 18.158879453362964,
+      "endToEndThroughputChangePct": 16.962940499872747,
+      "scheduledExecutionsChangePct": -47.67331433998101
+    },
+    {
+      "workload": "pool",
+      "parallelism": 25,
+      "control": "filtered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": 6.960294404673117,
+      "endToEndThroughputChangePct": 7.486686570883028,
+      "scheduledExecutionsChangePct": -47.67331433998101
+    },
+    {
+      "workload": "pool",
+      "parallelism": 100,
+      "control": "baseline",
+      "treatment": "filtered",
+      "committedThroughputChangePct": -2.0315568668525352,
+      "endToEndThroughputChangePct": -1.2119422405221014,
+      "scheduledExecutionsChangePct": -32.851511169513806
+    },
+    {
+      "workload": "pool",
+      "parallelism": 100,
+      "control": "prFiltered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": -0.08214621686345458,
+      "endToEndThroughputChangePct": 2.1473647678938335,
+      "scheduledExecutionsChangePct": -48.97159647404506
+    },
+    {
+      "workload": "pool",
+      "parallelism": 100,
+      "control": "filtered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": 17.765099758273895,
+      "endToEndThroughputChangePct": 12.71273715821124,
+      "scheduledExecutionsChangePct": -49.021526418786685
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 25,
+      "control": "baseline",
+      "treatment": "filtered",
+      "committedThroughputChangePct": -20.65732282590742,
+      "endToEndThroughputChangePct": -20.50804418478641,
+      "scheduledExecutionsChangePct": -17.49706916764361
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 25,
+      "control": "prFiltered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": -0.051836186578391175,
+      "endToEndThroughputChangePct": -0.8391143021608816,
+      "scheduledExecutionsChangePct": -21.61393530039104
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 25,
+      "control": "filtered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": 33.47877908153012,
+      "endToEndThroughputChangePct": 30.16840643834515,
+      "scheduledExecutionsChangePct": -21.6696269982238
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 25,
+      "control": "transactional",
+      "treatment": "allMutations",
+      "committedThroughputChangePct": -5.008361985641496,
+      "endToEndThroughputChangePct": -3.187506114646621,
+      "scheduledExecutionsChangePct": -45.487528344671205
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 100,
+      "control": "baseline",
+      "treatment": "filtered",
+      "committedThroughputChangePct": 9.586066104740532,
+      "endToEndThroughputChangePct": 6.608253423675392,
+      "scheduledExecutionsChangePct": -18.08638272345531
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 100,
+      "control": "prFiltered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": -7.359914176340743,
+      "endToEndThroughputChangePct": -5.614543928370019,
+      "scheduledExecutionsChangePct": -21.945866861741038
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 100,
+      "control": "filtered",
+      "treatment": "transactional",
+      "committedThroughputChangePct": -5.2419461951714315,
+      "endToEndThroughputChangePct": -2.1253105232435954,
+      "scheduledExecutionsChangePct": -21.860124496521415
+    },
+    {
+      "workload": "mutation",
+      "parallelism": 100,
+      "control": "transactional",
+      "treatment": "allMutations",
+      "committedThroughputChangePct": 24.52544924918021,
+      "endToEndThroughputChangePct": 17.177368654353977,
+      "scheduledExecutionsChangePct": -46.81349578256795
+    }
+  ]
+}

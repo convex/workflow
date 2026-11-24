@@ -51,6 +51,7 @@ test.each(["pool", "mutation", "action", "inline"])(
     const { input, log, emit } = watch();
     const sample = {
       mode: "baseline",
+      legacyCallbacks: true,
       workload,
       count: 2,
       steps: 2,
@@ -108,6 +109,7 @@ test("fails the callback wait when the stream ends before the callbacks arrive",
   await expect(
     log.waitFor({
       mode: "baseline",
+      legacyCallbacks: true,
       workload: "pool",
       count: 1,
       from: 1000,
@@ -122,6 +124,7 @@ test("times out rather than starting another trial with missing callbacks", asyn
     log.waitFor(
       {
         mode: "baseline",
+        legacyCallbacks: true,
         workload: "pool",
         count: 1,
         from: 1000,
@@ -173,6 +176,7 @@ function auditFixture() {
   const logsPath = path.join(directory, "results.logs.jsonl");
   const samples = [-1, 0].map((round) => ({
     mode: "baseline",
+    legacyCallbacks: true,
     workload: "pool",
     maxParallelism: 25,
     round,
@@ -249,5 +253,59 @@ test.each([
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain(`Invalid log JSON at ${logsPath}:9`);
     expect(readFileSync(filename, "utf8")).toBe(original);
+  },
+);
+
+test.each(["baseline", "transactional", "allMutations"])(
+  "audits nested and scheduled query completions for %s",
+  (mode) => {
+    const { filename, logsPath, audit } = auditFixture();
+    const results = JSON.parse(readFileSync(filename, "utf8"));
+    results.workloads = ["query"];
+    results.modes = [mode];
+    for (const sample of results.samples) {
+      sample.workload = "query";
+      sample.mode = mode;
+      sample.legacyCallbacks = false;
+    }
+    writeFileSync(filename, JSON.stringify(results));
+    const entries = results.samples.flatMap((s) => {
+      const records = [];
+      const add = (identifier, caller = "Scheduler") =>
+        records.push(
+          completion(`${s.round}-${records.length}`, {
+            identifier,
+            caller,
+            componentPath: mode,
+            timestamp: (s.from + records.length + 10) / 1000,
+          }),
+        );
+      for (let i = 0; i < (mode === "allMutations" ? 3 : 2); i++)
+        add("worker:runMutationWrapper");
+      if (mode === "baseline") {
+        add("complete:complete");
+        add("complete:complete");
+      }
+      if (mode !== "allMutations") {
+        add("worker:runBatch");
+        add("complete:complete", "Function");
+      }
+      add("loop:loop");
+      return records;
+    });
+    writeFileSync(
+      logsPath,
+      entries.map((e) => JSON.stringify(e)).join("\n") + "\n",
+    );
+    const result = audit();
+    expect(result.status, result.stderr).toBe(0);
+    const [sample] = JSON.parse(readFileSync(filename, "utf8")).samples;
+    expect(sample.executions.totalCompletions).toBe(
+      mode === "baseline" ? 3 : mode === "transactional" ? 1 : 0,
+    );
+    expect(sample.executions.scheduledSuccessCallbacks).toBe(0);
+    expect(sample.executions.separateCompletions).toBe(
+      mode === "baseline" ? 2 : 0,
+    );
   },
 );
