@@ -408,6 +408,10 @@ export async function createEvent<Name extends string>(
  *   `headersStorageId`) or `"discard"` (omit from the event value).
  * @param args.timeoutMs - Optional timeout in milliseconds. If the webhook is
  *   not called within this duration, the event fails with error "Timeout".
+ * Large payloads can be read via
+ * `ctx.runQuery(component.event.getWebhookPayloadUrl, { eventId, field: "body" })`
+ * (or `field: "headers"`). Fetch the returned URL to read the stored bytes.
+ * Authorize access in the app before exposing URLs. Cleanup removes these files.
  * @returns The event ID, UUID, and full URL to give to the caller.
  */
 export async function createWebhookEvent<Name extends string>(

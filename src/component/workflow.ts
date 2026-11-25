@@ -14,7 +14,7 @@ import {
   query,
 } from "./_generated/server.js";
 import { type Logger, logLevel } from "./logging.js";
-import { getWorkflow } from "./model.js";
+import { deleteWebhook, getWorkflow } from "./model.js";
 import { getWorkpool } from "./pool.js";
 import {
   journalDocument,
@@ -480,6 +480,9 @@ export const cleanup = mutation({
     logger.debug(`Cleaning up workflow ${workflowId}`, workflow);
     await ctx.db.delete("workflows", workflowId);
     await cleanupStepsFrom(ctx, workflowId, 0);
+    await ctx.scheduler.runAfter(0, internal.event.cleanupWebhooks, {
+      workflowId,
+    });
     return true;
   },
 });
@@ -561,6 +564,12 @@ async function deleteSteps(ctx: MutationCtx, batch: Doc<"steps">[]) {
     batch.map(async (entry) => {
       await ctx.db.delete("steps", entry._id);
       if (entry.step.kind === "event" && entry.step.eventId) {
+        const eventId = entry.step.eventId;
+        const webhook = await ctx.db
+          .query("webhookCallbacks")
+          .withIndex("by_eventId", (q) => q.eq("eventId", eventId))
+          .unique();
+        if (webhook) await deleteWebhook(ctx, webhook);
         await ctx.db.delete("events", entry.step.eventId);
       } else if (entry.step.kind === "workflow" && entry.step.workflowId) {
         nestedWorkflowIds.push(entry.step.workflowId);

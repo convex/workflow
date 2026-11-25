@@ -1,10 +1,11 @@
+import type { Id } from "./_generated/dataModel.js";
 import { httpRouter } from "convex/server";
 import { httpAction, type ActionCtx } from "./_generated/server.js";
-import { api, internal } from "./_generated/api.js";
+import { internal } from "./_generated/api.js";
 
 const MAX_INLINE_SIZE = 256 * 1024; // 256KB
 const SUPPORTED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-const METHODS_WITH_BODY = new Set<string>(["POST", "PUT", "PATCH"]);
+const METHODS_WITH_BODY = new Set<string>(["POST", "PUT", "PATCH", "DELETE"]);
 
 const http = httpRouter();
 
@@ -24,7 +25,7 @@ const handleWebhook = httpAction(async (ctx, req) => {
 
   if (webhook.eventState === "sent" || webhook.eventState === "consumed") {
     console.info(
-      `Webhook for event ${webhook.eventId} already processed (state: ${webhook.eventState}, uuid: ${uuid})`,
+      `Webhook for event ${webhook.eventId} already processed (state: ${webhook.eventState})`,
     );
     return new Response(JSON.stringify({ ok: true, alreadyProcessed: true }), {
       status: 200,
@@ -69,19 +70,25 @@ const handleWebhook = httpAction(async (ctx, req) => {
     }
   }
 
-  console.info(
-    `Webhook ${req.method} received for event ${webhook.eventId} (uuid: ${uuid})`,
-  );
+  console.info(`Webhook ${req.method} received for event ${webhook.eventId}`);
 
-  await ctx.runMutation(api.event.send, {
+  const completed = await ctx.runMutation(internal.event.completeWebhook, {
     eventId: webhook.eventId,
-    result: { kind: "success", returnValue: eventValue },
+    value: eventValue,
+    bodyStorageId: eventValue.bodyStorageId as Id<"_storage"> | undefined,
+    headersStorageId: eventValue.headersStorageId as Id<"_storage"> | undefined,
   });
 
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      ...(!completed ? { alreadyProcessed: true } : {}),
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 });
 
 for (const method of SUPPORTED_METHODS) {

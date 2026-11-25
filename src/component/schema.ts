@@ -139,7 +139,12 @@ export default defineSchema({
     eventId: v.id("events"),
     workflowId: v.id("workflows"),
     settings: vWebhookSettings,
-  }).index("by_uuid", ["uuid"]),
+    bodyStorageId: v.optional(v.id("_storage")),
+    headersStorageId: v.optional(v.id("_storage")),
+  })
+    .index("by_uuid", ["uuid"])
+    .index("by_eventId", ["eventId"])
+    .index("by_workflowId", ["workflowId"]),
   onCompleteFailures: defineTable(
     v.union(
       v.object({

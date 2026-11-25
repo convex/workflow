@@ -1,5 +1,5 @@
-import type { Id } from "./_generated/dataModel.js";
-import type { QueryCtx } from "./_generated/server.js";
+import type { Doc, Id } from "./_generated/dataModel.js";
+import type { MutationCtx, QueryCtx } from "./_generated/server.js";
 
 export async function getWorkflow(
   ctx: QueryCtx,
@@ -16,4 +16,14 @@ export async function getWorkflow(
     );
   }
   return workflow;
+}
+
+export async function deleteWebhook(
+  ctx: MutationCtx,
+  webhook: Doc<"webhookCallbacks">,
+) {
+  for (const id of [webhook.bodyStorageId, webhook.headersStorageId]) {
+    if (id) await ctx.storage.delete(id);
+  }
+  await ctx.db.delete("webhookCallbacks", webhook._id);
 }

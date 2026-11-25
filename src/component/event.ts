@@ -1,3 +1,4 @@
+import { deleteWebhook } from "./model.js";
 // Get event status
 
 import { v } from "convex/values";
@@ -5,6 +6,7 @@ import {
   internalMutation,
   internalQuery,
   mutation,
+  query,
   type MutationCtx,
 } from "./_generated/server.js";
 import { vResultValidator } from "@convex-dev/workpool";
@@ -268,6 +270,8 @@ export const getWebhookByUuid = internalQuery({
       eventId: v.id("events"),
       workflowId: v.id("workflows"),
       settings: vWebhookSettings,
+      bodyStorageId: v.optional(v.id("_storage")),
+      headersStorageId: v.optional(v.id("_storage")),
       eventState: v.union(
         v.literal("created"),
         v.literal("waiting"),
@@ -300,6 +304,91 @@ export const timeoutEvent = internalMutation({
         eventId: args.eventId,
         result: { kind: "failed", error: "Timeout" },
       });
+    }
+    return null;
+  },
+});
+
+// Recheck and send in one transaction so concurrent callbacks and timeouts
+// cannot both complete the same event.
+export const completeWebhook = internalMutation({
+  args: {
+    eventId: v.id("events"),
+    value: v.any(),
+    bodyStorageId: v.optional(v.id("_storage")),
+    headersStorageId: v.optional(v.id("_storage")),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args): Promise<boolean> => {
+    const event = await ctx.db.get("events", args.eventId);
+    const webhook = await ctx.db
+      .query("webhookCallbacks")
+      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+      .unique();
+    const workflow =
+      webhook && (await ctx.db.get("workflows", webhook.workflowId));
+    if (
+      !event ||
+      !webhook ||
+      !workflow ||
+      event.state.kind === "sent" ||
+      event.state.kind === "consumed"
+    ) {
+      // Files created by a losing delivery must not become orphans.
+      for (const id of [args.bodyStorageId, args.headersStorageId]) {
+        if (id) await ctx.storage.delete(id);
+      }
+      return false;
+    }
+    await ctx.runMutation(api.event.send, {
+      eventId: args.eventId,
+      result: { kind: "success", returnValue: args.value },
+    });
+    await ctx.db.patch("webhookCallbacks", webhook._id, {
+      bodyStorageId: args.bodyStorageId,
+      headersStorageId: args.headersStorageId,
+    });
+    return true;
+  },
+});
+
+/** Resolve a spilled payload in component storage. Apps must authorize access
+ * to the workflow before exposing this URL to an end user. The file is removed
+ * when the workflow/event is cleaned up.
+ */
+export const getWebhookPayloadUrl = query({
+  args: {
+    eventId: v.id("events"),
+    field: v.union(v.literal("body"), v.literal("headers")),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const webhook = await ctx.db
+      .query("webhookCallbacks")
+      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+      .unique();
+    const id =
+      args.field === "body"
+        ? webhook?.bodyStorageId
+        : webhook?.headersStorageId;
+    return id ? await ctx.storage.getUrl(id) : null;
+  },
+});
+
+export const cleanupWebhooks = internalMutation({
+  args: { workflowId: v.id("workflows") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const batch = await ctx.db
+      .query("webhookCallbacks")
+      .withIndex("by_workflowId", (q) => q.eq("workflowId", args.workflowId))
+      .take(64);
+    for (const webhook of batch) {
+      await deleteWebhook(ctx, webhook);
+      await ctx.db.delete("events", webhook.eventId);
+    }
+    if (batch.length === 64) {
+      await ctx.scheduler.runAfter(0, internal.event.cleanupWebhooks, args);
     }
     return null;
   },

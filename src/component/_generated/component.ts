@@ -46,6 +46,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         { eventId: string; uuid: string; url: string },
         Name
       >;
+      getWebhookPayloadUrl: FunctionReference<
+        "query",
+        "internal",
+        { eventId: string; field: "body" | "headers" },
+        string | null,
+        Name
+      >;
       send: FunctionReference<
         "mutation",
         "internal",
