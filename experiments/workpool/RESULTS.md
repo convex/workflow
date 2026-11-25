@@ -85,6 +85,16 @@ calls remain UDF executions; these counts are not billing estimates.
 | query    |          25 |     1367 |   1369 |      720 |             1202 |
 | query    |         100 |     1260 |   1255 |      654 |             1134 |
 
+## Timing boundary in the recorded run
+
+These tables and `results.json` retain the original measurements: `admittedAt`
+was captured in the driver action after `start` returned. All recorded durations
+are positive, but that boundary can race very short work and excludes response
+latency from reported execution time. The updated harness uses the successful
+start mutation's pre-commit timestamp, including its execution/commit overhead,
+and rejects zero-duration measurements. Future runs therefore use a different
+execution/admission split; these historical tables have not been recomputed.
+
 ## Versions, method, and validation
 
 Run began 2026-11-24T06:39:52.485Z on isolated development deployment

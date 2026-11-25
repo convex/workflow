@@ -73,6 +73,8 @@ export class CallbackLog {
     const deadline = Date.now() + timeoutMs;
     while (true) {
       if (this.error) throw this.error;
+      // Counts cannot establish full log capture. Keep the stream alive for
+      // the entire run, including modes with zero expected callbacks.
       if (this.ended) throw new Error("Log stream ended before trial drain");
       const observed = [...this.commits.values()].filter(
         (entry) =>

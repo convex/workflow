@@ -115,8 +115,8 @@ for (const sample of samples) {
       ? 1
       : sample.workload === "inline"
         ? 1
-        : (sample.workload === "action" || sample.workload === "query") &&
-            sample.mode !== "allMutations"
+        : sample.workload === "action" ||
+            (sample.workload === "query" && sample.mode !== "allMutations")
           ? sample.steps + 1
           : 2 * sample.steps + 1);
   assert.equal(

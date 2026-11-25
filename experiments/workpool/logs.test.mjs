@@ -309,3 +309,57 @@ test.each(["baseline", "transactional", "allMutations"])(
     );
   },
 );
+
+test.each([0, 1])(
+  "rejects a closed capture even with %i satisfied callbacks",
+  async (count) => {
+    const { input, log, emit } = watch();
+    if (count) emit(completion("last"));
+    input.end();
+    await log.done;
+    await expect(
+      log.waitFor({
+        mode: "baseline",
+        legacyCallbacks: true,
+        workload: "pool",
+        count,
+        from: 1000,
+        run: "closed",
+      }),
+    ).rejects.toThrow("Log stream ended");
+  },
+);
+
+test("audits allMutations actions with only handler mutation wrappers", () => {
+  const { filename, logsPath, audit } = auditFixture();
+  const results = JSON.parse(readFileSync(filename, "utf8"));
+  results.workloads = ["action"];
+  results.modes = ["allMutations"];
+  for (const s of results.samples)
+    Object.assign(s, {
+      workload: "action",
+      mode: "allMutations",
+      legacyCallbacks: false,
+    });
+  writeFileSync(filename, JSON.stringify(results));
+  const entries = results.samples.flatMap((s) =>
+    [
+      "worker:runMutationWrapper",
+      "worker:runMutationWrapper",
+      "worker:runBatch",
+      "loop:loop",
+    ].map((identifier, i) =>
+      completion(`${s.round}-${i}`, {
+        identifier,
+        componentPath: "allMutations",
+        timestamp: (s.from + i + 10) / 1000,
+      }),
+    ),
+  );
+  writeFileSync(
+    logsPath,
+    entries.map((e) => JSON.stringify(e)).join("\n") + "\n",
+  );
+  const result = audit();
+  expect(result.status, result.stderr).toBe(0);
+});

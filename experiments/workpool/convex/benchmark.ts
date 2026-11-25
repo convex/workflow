@@ -359,8 +359,10 @@ export const run = internalAction({
       internal.benchmark.start,
       args,
     );
-    const admittedAt = Date.now();
-    const deadline = admittedAt + 240_000;
+    // The start mutation timestamp precedes commit and scheduled execution.
+    // Taking Date.now() here races fast work against the action response.
+    const admittedAt = startedAt;
+    const deadline = Date.now() + 240_000;
     while (Date.now() < deadline) {
       const rows = await ctx.runQuery(internal.benchmark.observe, {
         run: args.run,
@@ -385,6 +387,8 @@ export const run = internalAction({
           const elapsedMs = latencies[latencies.length - 1];
           const executionMs =
             rows.reduce((last, row) => Math.max(last, row.at), 0) - admittedAt;
+          if (executionMs <= 0)
+            throw new Error("Trial duration is below timestamp resolution");
           return {
             elapsedMs,
             admissionMs: admittedAt - admissionStartedAt,

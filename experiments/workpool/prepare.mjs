@@ -52,6 +52,8 @@ for (const mode of modes) {
     for (const name of ["pool.ts", "convex.config.ts", "_generated/api.ts"]) {
       const file = path.join(dest, "component", name);
       const source = await readFile(file, "utf8");
+      if (!source.includes("@convex-dev/workpool"))
+        throw new Error(`Missing workpool package anchor in ${name}`);
       await writeFile(
         file,
         source.replaceAll(

@@ -79,12 +79,15 @@ measured workload.
   final sum; queries are verified to produce no step writes. No shared counters
   create artificial contention. The `inline` workload runs those steps inline;
   `action` wraps the same write in an action.
-- `admissionMs` measures the enqueue/start call separately. `executionMs` runs
-  from that call returning in the server action to the final completion-row
-  timestamp. `elapsedMs` includes admission from the successful start mutation's
-  timestamp. `p50Ms`/`p95Ms` are batch latencies including admission, not
-  individual mutation service times. Polling happens every 500 ms and is outside
-  these server-timestamp measurements.
+- `admittedAt` is the successful start mutation's pre-commit timestamp.
+  `admissionMs` measures from the driver action's start to that boundary.
+  `executionMs` measures from that boundary through the last completion-row
+  timestamp, including the admission transaction's execution/commit overhead.
+  This avoids a response-delivery race when work completes before the action
+  resumes. Durations below timestamp resolution fail instead of producing
+  invalid throughput. `elapsedMs`, `p50Ms`, and `p95Ms` use the same start
+  timestamp; percentiles describe workflow/job completion, not mutation service
+  times. Polling happens every 500 ms, outside these timestamp measurements.
 - The summarizer also calculates `committedExecutionMs` and
   `committedThroughput` from the last successful work/completion/callback
   transaction in execution logs, excluding idle-loop settling. This includes the

@@ -1,6 +1,6 @@
 > Historical run: released 0.4.7 vs. PR `14eabf7`, using the former API and
-> modes. See [the current results](../RESULTS.md) for the 0.4.12 exclusion
-> comparison.
+> modes. See [the September results](RESULTS-september-0.4.12.md) for the 0.4.12
+> exclusion comparison.
 
 # Workpool PR #238: measured results
 
@@ -25,7 +25,8 @@ remain enabled: they record the result and resume the workflow.
   [workpool PR #238](https://github.com/get-convex/workpool/pull/238), commit
   `14eabf7`, package version `0.4.11`. The alias was initially installed from
   `@238`; the commit-addressed tarball was verified to have the identical
-  SHA-512 integrity and is now pinned in `package.json` and the lockfile.
+  SHA-512 integrity and was pinned for that run. The recorded integrity is
+  preserved in [results.json](results.json).
 - Convex `1.43.0`; Node `22.22.2`; isolated development deployment
   [aware-mandrill-795](https://dashboard.convex.dev/d/aware-mandrill-795),
   created with a seven-day expiration. Separate component instances for each

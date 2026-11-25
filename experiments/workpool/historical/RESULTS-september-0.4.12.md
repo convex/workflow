@@ -168,13 +168,13 @@ npm run bench:workpool -- --repeats=3 --parallelism=25,100 --jobs=500 --flows=10
 node experiments/workpool/summarize.mjs experiments/workpool/results.json
 ```
 
-See [README.md](README.md) for dedicated deployment setup and all runner
+See [README.md](../README.md) for dedicated deployment setup and all runner
 options. [results-september-0.4.12.json](results-september-0.4.12.json) contains
 every sample, package integrities, per-function counts/timings, summaries, and
 percentage comparisons. Raw execution logs remain in the ignored local
-`results.logs.jsonl` file. The [historical report](historical/RESULTS.md)
-preserves the earlier 0.4.7 experiment; it uses different package versions and
-modes and should not be combined with these results.
+`results.logs.jsonl` file. The [historical report](RESULTS.md) preserves the
+earlier 0.4.7 experiment; it uses different package versions and modes and
+should not be combined with these results.
 
 These are finite batches of inexpensive writes on a development deployment.
 Restart, cleanup, cancellation races, callback-failure recovery, and transaction
