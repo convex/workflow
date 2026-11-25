@@ -1,3 +1,4 @@
+import { admit, executionDuration } from "./lib/timing.js";
 import {
   Workpool,
   vResultValidator,
@@ -355,13 +356,11 @@ export const run = internalAction({
   }),
   handler: async (ctx, args): Promise<Measurement> => {
     const admissionStartedAt = Date.now();
-    const { ids, startedAt } = await ctx.runMutation(
-      internal.benchmark.start,
-      args,
+    const { ids, startedAt, admittedAt } = await admit(() =>
+      ctx.runMutation(internal.benchmark.start, args),
     );
     // The start mutation timestamp precedes commit and scheduled execution.
     // Taking Date.now() here races fast work against the action response.
-    const admittedAt = startedAt;
     const deadline = Date.now() + 240_000;
     while (Date.now() < deadline) {
       const rows = await ctx.runQuery(internal.benchmark.observe, {
@@ -385,10 +384,10 @@ export const run = internalAction({
             .map((r) => r.at - startedAt)
             .sort((a, b) => a - b);
           const elapsedMs = latencies[latencies.length - 1];
-          const executionMs =
-            rows.reduce((last, row) => Math.max(last, row.at), 0) - admittedAt;
-          if (executionMs <= 0)
-            throw new Error("Trial duration is below timestamp resolution");
+          const executionMs = executionDuration(
+            admittedAt,
+            rows.reduce((last, row) => Math.max(last, row.at), 0),
+          );
           return {
             elapsedMs,
             admissionMs: admittedAt - admissionStartedAt,
