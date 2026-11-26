@@ -90,3 +90,43 @@ export const timedAfterPause = workflow
       timeout: args.timeout,
     });
   });
+
+// Runs a list of sleeps and waits for "answer", in order, and returns one
+// result per step (null for a sleep). timedEvents.property.test.ts generates
+// these lists and checks the results against a model of the event rules.
+export const runScript = workflow
+  .define({
+    args: {
+      steps: v.array(
+        v.union(
+          v.object({ kind: v.literal("sleep"), ms: v.number() }),
+          v.object({
+            kind: v.literal("wait"),
+            timeout: v.optional(v.number()),
+          }),
+        ),
+      ),
+    },
+  })
+  .handler(async (step, args) => {
+    const results: unknown[] = [];
+    for (const s of args.steps) {
+      if (s.kind === "sleep") {
+        await step.sleep(s.ms);
+        results.push(null);
+      } else if (s.timeout === undefined) {
+        results.push(
+          await step.awaitEvent({ name: "answer", validator: v.string() }),
+        );
+      } else {
+        results.push(
+          await step.awaitEvent({
+            name: "answer",
+            validator: v.string(),
+            timeout: s.timeout,
+          }),
+        );
+      }
+    }
+    return results;
+  });
