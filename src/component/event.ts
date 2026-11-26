@@ -332,7 +332,7 @@ export const timeoutWait = internalMutation({
       },
     });
     const workflow = await ctx.db.get("workflows", event.workflowId);
-    if (!workflow || workflow.runResult !== undefined) {
+    if (!workflow) {
       return null;
     }
     const step = await ctx.db.get("steps", args.stepId);
@@ -354,7 +354,13 @@ export const timeoutWait = internalMutation({
       stepNumber: step.stepNumber,
       durationMs: step.step.completedAt - step.step.startedAt,
     });
-    await resumeIfNoWaitingEvents(ctx, workflow._id, args.workpoolOptions);
+    // The step ends even if the workflow already finished: a replay that
+    // fails the workflow can still start this wait (a Promise.all branch
+    // beside the failed one), and nothing else would mark it done. Only a
+    // running workflow needs to replay.
+    if (workflow.runResult === undefined) {
+      await resumeIfNoWaitingEvents(ctx, workflow._id, args.workpoolOptions);
+    }
     return null;
   },
 });

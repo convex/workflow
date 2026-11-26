@@ -5,6 +5,7 @@ import { assert } from "convex-helpers";
 import {
   cancel,
   getStatus,
+  listSteps,
   sendEvent,
   type EventId,
   type WorkflowId,
@@ -205,7 +206,7 @@ describe("awaitEvent with timeout", () => {
         { startAsync: true },
       ),
     );
-    await advance(t, 500);
+    await advance(t, 3000);
     const waiting = await status(t, workflowId);
     assert(waiting.type === "inProgress");
     const step = waiting.running[0];
@@ -247,6 +248,33 @@ describe("awaitEvent with timeout", () => {
     const done = await status(t, workflowId);
     assert(done.type === "failed");
     expect(done.error).toContain("declined");
+  });
+
+  // The workflow ends (here by cancel; also when a failing replay starts the
+  // wait beside a failed Promise.all branch) while the timed wait is open.
+  // When the timeout fires, timeoutWait must still mark the step done. It
+  // used to return as soon as it saw the workflow had finished, leaving the
+  // step in progress for good, and a later restart that kept it would block.
+  test("a timed wait in a finished workflow still ends at its timeout", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.run((ctx) =>
+      workflow.start(
+        ctx,
+        internal.timedEvents.waitByName,
+        { timeout: 5000 },
+        { startAsync: true },
+      ),
+    );
+    await advance(t, 500);
+    await t.run((ctx) => cancel(ctx, components.workflow, workflowId));
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const steps = await t.run((ctx) =>
+      listSteps(ctx, components.workflow, workflowId, {
+        paginationOpts: { cursor: null, numItems: 10 },
+      }),
+    );
+    const wait = steps.page.find((s) => s.kind === "event");
+    expect(wait?.completedAt).toBeDefined();
   });
 
   test("canceled while waiting: later send and timeout are no-ops", async () => {
