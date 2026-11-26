@@ -4,3 +4,6 @@ dist/
 package-lock.json
 # Generated documentation is owned by the Convex CLI.
 example/convex/_generated/ai/
+# Generated benchmark components and local trial artifacts.
+experiments/workpool/generated/
+experiments/workpool/results.local.json

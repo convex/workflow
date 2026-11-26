@@ -1,0 +1,9 @@
+{
+  "workflowMain": "0f13d31",
+  "workflowVersion": "0.5.0",
+  "workpoolMain": "48d328b5130a65409ec3be3994594d53f6692c28",
+  "workpoolVersion": "0.5.0",
+  "mutationPrHead": "aa5234c59dafa2e367769412907458ff659330e4",
+  "queryPrHead": "b49510e00816a6265128a835b51a2753e674a1ac",
+  "rebasedHead": "2bbbe6a9f663e173fbea092a50db91d6c1b1e350"
+}

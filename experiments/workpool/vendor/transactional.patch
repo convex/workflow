@@ -1,0 +1,1527 @@
+.changeset/transactional-mutation-completion.md --- Text
+ 1 ---
+ 2 "@convex-dev/workpool": minor
+ 3 ---
+ 4 
+ 5 Add `completeTransactionally` to mutation enqueue options so successful work,
+ 6 its non-excluded `onComplete` callback, and completion bookkeeping commit
+ 7 together. If the callback or bookkeeping fails, the transaction rolls back and
+ 8 periodic recovery reports the work as failed. The default completion behavior is
+ 9 unchanged.
+10 
+
+.changeset/transactional-query-completion.md --- Text
+ 1 ---
+ 2 "@convex-dev/workpool": minor
+ 3 ---
+ 4 
+ 5 Support `completeTransactionally` for queued queries so their non-excluded
+ 6 success callback and completion bookkeeping commit together. Query reads use an
+ 7 independent snapshot and may be stale when the callback commits; read data that
+ 8 must still be current within the callback. Run ordinary queued queries through
+ 9 the action batch worker with independent snapshots.
+10 
+
+README.md --- 1/4 --- Text
+130 });                                  130 });
+131 ```                                  131 ```
+132                                      132 
+133 Note: the `onComplete` handler runs  133 By default, the `onComplete` handle
+...  in a different transaction than th  ... r runs in a different transaction t
+... e job                                ... han the
+134 enqueued. If you want to run it in   134 enqueued job. For mutations and que
+... the same transaction, you can do th  ... ries, `completeTransactionally: tru
+... at work at                           ... e` makes
+...                                      135 successful work and its selected ca
+...                                      ... llback complete in one transaction,
+...                                      ...  as
+135 the end of the enqueued function, b  136 described below. For mutations, you
+... efore returning. This is generally   ...  can also do callback work at the e
+... faster and                           ... nd of the
+...                                      137 enqueued function, before returning
+...                                      ... , which avoids another function cal
+...                                      ... l and
+136 more typesafe when handling the "su  138 preserves the result's type directl
+... ccess" case.                         ... y.
+137                                      139 
+138 You can also use this equivalent he  140 You can also use this equivalent he
+... lper to define an `onComplete` muta  ... lper to define an `onComplete` muta
+... tion. Note                           ... tion. Note
+139 the `DataModel` type parameter, if   141 the `DataModel` type parameter, if 
+... you want ctx.db to be type safe.     ... you want ctx.db to be type safe.
+
+README.md --- 2/4 --- Text
+169 171 scheduler cancelation (for example, from the dashboard) is treated as a failure
+170 172 and can trigger retries instead.
+171 173 
+... 174 ### Transactional success for mutations and queries
+... 175 
+... 176 Use `completeTransactionally: true` with `enqueueMutation` or
+... 177 `enqueueMutationBatch` to commit each mutation, its selected success callback,
+... 178 and workpool completion bookkeeping together. `enqueueQuery` and
+... 179 `enqueueQueryBatch` support the same option:
+... 180 
+... 181 ```ts
+... 182 await pool.enqueueMutation(ctx, internal.tasks.process, args, {
+... 183   onComplete: internal.tasks.handleResult,
+... 184   onCompleteExcludeKinds: ["canceled"],
+... 185   completeTransactionally: true,
+... 186 });
+... 187 ```
+... 188 
+... 189 Queries always read an independent snapshot. With this option, the success
+... 190 callback and completion bookkeeping commit together, but the query's reads do
+... 191 not create dependencies that cause that transaction to retry on concurrent
+... 192 writes. The query result may be stale when the callback commits; read any data
+... 193 that must still be current within the callback. Without this option, queries run
+... 194 through the action batch worker.
+... 195 
+... 196 Each opted-in query is scheduled in its own mutation wrapper, including queries
+... 197 enqueued in a batch. For example:
+... 198 
+... 199 ```ts
+... 200 await pool.enqueueQuery(ctx, internal.tasks.findPending, args, {
+... 201   onComplete: internal.tasks.handlePending,
+... 202   onCompleteExcludeKinds: ["canceled"],
+... 203   completeTransactionally: true,
+... 204 });
+... 205 ```
+... 206 
+... 207 For mutations, the callback can read the mutation's writes. For either function
+... 208 type, if the success callback or completion bookkeeping throws, the scheduled
+... 209 wrapper fails and all its writes roll back. Workpool's periodic recovery then
+... 210 marks the work as failed and invokes the callback for `"failed"`, unless
+... 211 excluded. Until recovery runs, the job remains running and occupies a
+... 212 concurrency slot. There is no separate fallback execution of the success
+... 213 callback.
+... 214 
+... 215 Ordinary work errors still use the existing failure-completion path. Failure and
+... 216 cancellation callbacks keep their usual transaction behavior. Excluding every
+... 217 kind, or omitting the callback, still allows transactional bookkeeping, without
+... 218 a separate completion invocation. Jobs in a batch remain independent
+... 219 transactions. Actions do not support this option.
+... 220 
+... 221 This option requires Convex 1.42 or newer. The work and callback share one
+... 222 transaction budget. Workpool uses nested transaction limits to reserve space for
+... 223 completion bookkeeping; work that fits by itself may exceed the combined budget.
+... 224 Limit overruns or execution failures can still fail the transaction, in which
+... 225 case recovery handles it as above.
+... 226 
+172 227 ### Idempotency
+173 228 
+174 229 Idempotent actions are actions that can be run multiple times safely. This
+
+README.md --- 3/4 --- Text
+307                                      362 
+308 Check out the [docstrings](./src/cl  363 Check out the [docstrings](./src/cl
+... ient/index.ts), but notable options  ... ient/index.ts), but notable options
+...  include:                            ...  include:
+309                                      364 
+310 - `maxParallelism`: How many action  365 - `maxParallelism`: How many action
+... s/mutations can run at once within   ... s, mutations, and queries can run a
+... this pool.                           ... t once
+311   Avoid exceeding 100 on Pro, 20 on  366   within this pool. Avoid exceeding
+...  the free plan, across all workpool  ...  100 on Pro, 20 on the free plan, a
+... s and                                ... cross all
+312   workflows.                         367   workpools and workflows.
+313 - `retryActionsByDefault`: Whether   368 - `retryActionsByDefault`: Whether 
+... to retry actions that fail by defau  ... to retry actions that fail by defau
+... lt.                                  ... lt.
+314 - `defaultRetryBehavior`: The defau  369 - `defaultRetryBehavior`: The defau
+... lt retry behavior for enqueued acti  ... lt retry behavior for enqueued acti
+... ons.                                 ... ons.
+315                                      370 
+
+README.md --- 4/4 --- Text
+336 391 - `onCompleteExcludeKinds`: Optional list of result kinds to skip: `"success"`,
+337 392   `"failed"`, and `"canceled"`. Defaults to excluding none, so every outcome
+338 393   invokes the callback.
+... 394 - `completeTransactionally`: Mutation and query option to complete successful
+... 395   work, its selected callback, and completion bookkeeping together. Defaults to
+... 396   false.
+339 397 - `context`: Any data you want to pass to the `onComplete` mutation.
+340 398 - `runAt` and `runAfter`: Similar to `ctx.scheduler.run*`, allows you to
+341 399   schedule the work to run later. By default it's immediate.
+
+src/client/index.test.ts --- 1/4 --- Text (exceeded DFT_GRAPH_LIMIT)
+ 22   22 import type { api } from "../component/_generated/api.js";
+ 23   23 import {
+ 24   24   type EnqueueOptions,
+ ..   25   type TransactionalEnqueueOptions,
+ 25   26   NonRetryableError,
+ 26   27   type OnCompleteArgs,
+ 27   28   type RetryOption,
+
+src/client/index.test.ts --- 2/4 --- Text (exceeded DFT_GRAPH_LIMIT)
+ 31   32   vOnCompleteArgs,
+ 32   33   vResult,
+ 33   34   vWorkId,
+ ..   35   enqueue,
+ ..   36   enqueueBatch,
+ 34   37 } from "./index.js";
+ 35   38 
+ 36   39 const schema = defineSchema({
+
+src/client/index.test.ts --- 3/4 --- Text (exceeded DFT_GRAPH_LIMIT)
+190  193         .collect(),
+191  194     );
+192  195 
+...  196   test.each([false, true])(
+...  197     "transactional success works through mutation enqueue (batch: %s)",
+...  198     async (batch) => {
+...  199       const args = [
+...  200         { key: "atomic-success" },
+...  201         { key: "atomic-failure", fail: true },
+...  202       ];
+...  203       const options = {
+...  204         completeTransactionally: true,
+...  205         onComplete: refs.complete,
+...  206         context: { key: "atomic-callbacks" },
+...  207       };
+...  208       const ids = await t.mutation(async (ctx) =>
+...  209         batch
+...  210           ? pool.enqueueMutationBatch(ctx, refs.mutation, args, options)
+...  211           : Promise.all(
+...  212               args.map((args) =>
+...  213                 pool.enqueueMutation(ctx, refs.mutation, args, options),
+...  214               ),
+...  215             ),
+...  216       );
+...  217       await drain();
+...  218       expect((await events("atomic-success")).map((e) => e.kind)).toEqual([
+...  219         "work",
+...  220       ]);
+...  221       expect(await events("atomic-failure")).toEqual([]);
+...  222       const results = await events("atomic-callbacks");
+...  223       expect(results).toHaveLength(2);
+...  224       expect(results.find((e) => e.workId === ids[0])?.result).toEqual({
+...  225         kind: "success",
+...  226         returnValue: "mutation result",
+...  227       });
+...  228       expect(results.find((e) => e.workId === ids[1])?.result).toEqual({
+...  229         kind: "failed",
+...  230         error: "work failed",
+...  231       });
+...  232       expect(await t.query((ctx) => pool.statusBatch(ctx, ids))).toEqual([
+...  233         { state: "finished" },
+...  234         { state: "finished" },
+...  235       ]);
+...  236     },
+...  237   );
+...  238 
+...  239   test.each([false, true])(
+...  240     "transactional mutation enqueue rolls back work when the callback fails (batch: %s)",
+...  241     async (batch) => {
+...  242       const args = [{ key: "rollback-first" }, { key: "rollback-second" }];
+...  243       const options = {
+...  244         completeTransactionally: true,
+...  245         onComplete: refs.complete,
+...  246         context: { key: "rollback-callback", throw: true },
+...  247       };
+...  248       try {
+...  249         const ids = await t.mutation(async (ctx) =>
+...  250           batch
+...  251             ? pool.enqueueMutationBatch(ctx, refs.mutation, args, options)
+...  252             : Promise.all(
+...  253                 args.map((args) =>
+...  254                   pool.enqueueMutation(ctx, refs.mutation, args, options),
+...  255                 ),
+...  256               ),
+...  257         );
+...  258         await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2), {
+...  259           timeout: 10_000,
+...  260         });
+...  261         await t.finishInProgressScheduledFunctions();
+...  262         for (const { key } of args) expect(await events(key)).toEqual([]);
+...  263         expect(await events("rollback-callback")).toEqual([]);
+...  264         expect(
+...  265           await t.query((ctx) => pool.statusBatch(ctx, ids)),
+...  266         ).toMatchObject([{ state: "running" }, { state: "running" }]);
+...  267       } finally {
+...  268         // Inspect rollback before periodic recovery. worker.test.ts covers
+...  269         // recovery with convex-test's missing scheduled-error text supplied.
+...  270         await t.finishInProgressScheduledFunctions();
+...  271         vi.clearAllTimers();
+...  272       }
+...  273     },
+...  274   );
+...  275 
+...  276   test.each([false, true])(
+...  277     "transactional success works through query enqueue (batch: %s)",
+...  278     async (batch) => {
+...  279       const args = [
+...  280         { key: "atomic-success" },
+...  281         { key: "atomic-failure", fail: true },
+...  282       ];
+...  283       const options = {
+...  284         completeTransactionally: true,
+...  285         onComplete: refs.complete,
+...  286         context: { key: "atomic-callbacks" },
+...  287       };
+...  288       const ids = await t.mutation(async (ctx) =>
+...  289         batch
+...  290           ? pool.enqueueQueryBatch(ctx, refs.query, args, options)
+...  291           : Promise.all(
+...  292               args.map((args) =>
+...  293                 pool.enqueueQuery(ctx, refs.query, args, options),
+...  294               ),
+...  295             ),
+...  296       );
+...  297       await drain();
+...  298       expect((await events("atomic-success")).map((e) => e.kind)).toEqual([]);
+...  299       expect(await events("atomic-failure")).toEqual([]);
+...  300       const results = await events("atomic-callbacks");
+...  301       expect(results).toHaveLength(2);
+...  302       expect(results.find((e) => e.workId === ids[0])?.result).toEqual({
+...  303         kind: "success",
+...  304         returnValue: "query result",
+...  305       });
+...  306       expect(results.find((e) => e.workId === ids[1])?.result).toEqual({
+...  307         kind: "failed",
+...  308         error: "work failed",
+...  309       });
+...  310       expect(await t.query((ctx) => pool.statusBatch(ctx, ids))).toEqual([
+...  311         { state: "finished" },
+...  312         { state: "finished" },
+...  313       ]);
+...  314     },
+...  315   );
+...  316 
+...  317   test.each([false, true])(
+...  318     "transactional query enqueue rolls back completion when the callback fails (batch: %s)",
+...  319     async (batch) => {
+...  320       const args = [{ key: "rollback-first" }, { key: "rollback-second" }];
+...  321       const options = {
+...  322         completeTransactionally: true,
+...  323         onComplete: refs.complete,
+...  324         context: { key: "rollback-callback", throw: true },
+...  325       };
+...  326       try {
+...  327         const ids = await t.mutation(async (ctx) =>
+...  328           batch
+...  329             ? pool.enqueueQueryBatch(ctx, refs.query, args, options)
+...  330             : Promise.all(
+...  331                 args.map((args) =>
+...  332                   pool.enqueueQuery(ctx, refs.query, args, options),
+...  333                 ),
+...  334               ),
+...  335         );
+...  336         await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2), {
+...  337           timeout: 10_000,
+...  338         });
+...  339         await t.finishInProgressScheduledFunctions();
+...  340         for (const { key } of args) expect(await events(key)).toEqual([]);
+...  341         expect(await events("rollback-callback")).toEqual([]);
+...  342         expect(
+...  343           await t.query((ctx) => pool.statusBatch(ctx, ids)),
+...  344         ).toMatchObject([{ state: "running" }, { state: "running" }]);
+...  345       } finally {
+...  346         // Inspect rollback before periodic recovery. worker.test.ts covers
+...  347         // recovery with convex-test's missing scheduled-error text supplied.
+...  348         await t.finishInProgressScheduledFunctions();
+...  349         vi.clearAllTimers();
+...  350       }
+...  351     },
+...  352   );
+...  353 
+...  354   test("canceling pending transactional work preserves the cancellation callback", async () => {
+...  355     const id = await t.mutation((ctx) =>
+...  356       pool.enqueueMutation(
+...  357         ctx,
+...  358         refs.mutation,
+...  359         { key: "atomic-cancel" },
+...  360         {
+...  361           completeTransactionally: true,
+...  362           onComplete: refs.complete,
+...  363           onCompleteExcludeKinds: ["success", "failed"],
+...  364           context: { key: "atomic-cancel" },
+...  365           runAt: Date.now() + 60_000,
+...  366         },
+...  367       ),
+...  368     );
+...  369     await t.mutation((ctx) => pool.cancel(ctx, id));
+...  370     await drain();
+...  371     expect(await events("atomic-cancel")).toMatchObject([
+...  372       { kind: "callback", result: { kind: "canceled" } },
+...  373     ]);
+...  374     expect(callback).toHaveBeenCalledTimes(1);
+...  375   });
+...  376 
+193  377   describe.each(excludeFilters.map((excludeKinds) => ({ excludeKinds })))(
+194  378     "exclude filter $excludeKinds",
+
+src/client/index.test.ts --- 4/4 --- Text (exceeded DFT_GRAPH_LIMIT)
+858 1042     onComplete: null,
+859 1043     onCompleteExcludeKinds: [],
+860 1044   }).toMatchTypeOf<EnqueueOptions>();
+... 1045 });
+... 1046 
+... 1047 test("transactional completion is exposed for mutations and queries", () => {
+... 1048   const options = {
+... 1049     onComplete,
+... 1050     onCompleteExcludeKinds: ["failed", "canceled"] as const,
+... 1051     context: { label: "job" },
+... 1052     completeTransactionally: true,
+... 1053   } satisfies TransactionalEnqueueOptions<{ label: string }, number>;
+... 1054   const mutation = makeFunctionReference<"mutation", { value: number }, number>(
+... 1055     "work:mutation",
+... 1056   );
+... 1057   expectTypeOf((pool: Workpool, ctx: MutationCtx) => {
+... 1058     // @ts-expect-error Actions cannot opt into transactional completion.
+... 1059     void pool.enqueueAction(ctx, action, { value: 1 }, options);
+... 1060     // @ts-expect-error Batched actions cannot opt into transactional completion.
+... 1061     void pool.enqueueActionBatch(ctx, action, [{ value: 1 }], options);
+... 1062     return pool.enqueueMutation(ctx, mutation, { value: 1 }, options);
+... 1063   }).returns.toEqualTypeOf<Promise<WorkId>>();
+... 1064   expectTypeOf((pool: Workpool, ctx: MutationCtx) =>
+... 1065     pool.enqueueMutationBatch(ctx, mutation, [{ value: 1 }], options),
+... 1066   ).returns.toEqualTypeOf<Promise<WorkId[]>>();
+... 1067 });
+... 1068 
+... 1069 test("standalone enqueue gates transactional completion on fnType", () => {
+... 1070   const options = {
+... 1071     onComplete,
+... 1072     context: { label: "job" },
+... 1073     completeTransactionally: true,
+... 1074   };
+... 1075   const mutation = makeFunctionReference<"mutation", { value: number }, number>(
+... 1076     "work:mutation",
+... 1077   );
+... 1078   const query = makeFunctionReference<"query", { value: number }, number>(
+... 1079     "work:query",
+... 1080   );
+... 1081   const mixedFn = makeFunctionReference<
+... 1082     "mutation" | "action",
+... 1083     { value: number },
+... 1084     number
+... 1085   >("work:mixed");
+... 1086   const txFn = makeFunctionReference<
+... 1087     "mutation" | "query",
+... 1088     { value: number },
+... 1089     number
+... 1090   >("work:tx");
+... 1091   const arg = { value: 1 };
+... 1092   const batch = [arg];
+... 1093   expectTypeOf((c: WorkpoolComponent, ctx: MutationCtx) => {
+... 1094     // @ts-expect-error Actions cannot opt into transactional completion.
+... 1095     void enqueue(c, ctx, "action", action, arg, options);
+... 1096     // @ts-expect-error Batched actions cannot opt into transactional completion.
+... 1097     void enqueueBatch(c, ctx, "action", action, batch, options);
+... 1098     void enqueue(c, ctx, "query", query, arg, options);
+... 1099     void enqueueBatch(c, ctx, "query", query, batch, options);
+... 1100     // A union that includes a mutation must still be rejected as a whole: a
+... 1101     // distributive conditional would collapse this to boolean and let it through.
+... 1102     const mixed = "mutation" as "mutation" | "action";
+... 1103     // @ts-expect-error An action-capable union cannot opt in.
+... 1104     void enqueue(c, ctx, mixed, mixedFn, arg, options);
+... 1105     // @ts-expect-error A batched action-capable union cannot opt in.
+... 1106     void enqueueBatch(c, ctx, mixed, mixedFn, batch, options);
+... 1107     // Every member of this union supports the option, so it is accepted.
+... 1108     const tx = "mutation" as "mutation" | "query";
+... 1109     void enqueue(c, ctx, tx, txFn, arg, options);
+... 1110     void enqueueBatch(c, ctx, tx, txFn, batch, options);
+... 1111     return enqueue(c, ctx, "mutation", mutation, arg, options);
+... 1112   }).returns.toEqualTypeOf<Promise<WorkId>>();
+... 1113   expectTypeOf((c: WorkpoolComponent, ctx: MutationCtx) =>
+... 1114     enqueueBatch(c, ctx, "mutation", mutation, batch, options),
+... 1115   ).returns.toEqualTypeOf<Promise<WorkId[]>>();
+... 1116 });
+... 1117 
+... 1118 test("transactional query options retain result and context types", () => {
+... 1119   const query = makeFunctionReference<"query", { value: number }, number>(
+... 1120     "work:query",
+... 1121   );
+... 1122   const options = {
+... 1123     onComplete,
+... 1124     onCompleteExcludeKinds: ["failed", "canceled"] as const,
+... 1125     context: { label: "query" },
+... 1126     completeTransactionally: true,
+... 1127   } satisfies TransactionalEnqueueOptions<{ label: string }, number>;
+... 1128   expectTypeOf((pool: Workpool, ctx: MutationCtx) => {
+... 1129     void pool.enqueueQuery(
+... 1130       ctx,
+... 1131       query,
+... 1132       { value: 1 },
+... 1133       {
+... 1134         ...options,
+... 1135         // @ts-expect-error The callback requires a string label.
+... 1136         context: { label: 123 },
+... 1137       },
+... 1138     );
+... 1139     const stringQuery = makeFunctionReference<
+... 1140       "query",
+... 1141       { value: number },
+... 1142       string
+... 1143     >("work:stringQuery");
+... 1144     // @ts-expect-error The callback expects a numeric query result.
+... 1145     void pool.enqueueQuery(ctx, stringQuery, { value: 1 }, options);
+... 1146     return pool.enqueueQuery(ctx, query, { value: 1 }, options);
+... 1147   }).returns.toEqualTypeOf<Promise<WorkId>>();
+... 1148   expectTypeOf((pool: Workpool, ctx: MutationCtx) =>
+... 1149     pool.enqueueQueryBatch(ctx, query, [{ value: 1 }], options),
+... 1150   ).returns.toEqualTypeOf<Promise<WorkId[]>>();
+861 1151 });
+862 1152 
+863 1153 test("generated enqueue types match the component validators", () => {
+
+src/client/index.ts --- 1/12 --- TypeScript
+102 102     >,
+103 103     fnArgs: Args,
+104 104     options?: RetryOption &
+... 105       EnqueueOptions<Context, ReturnType> & { completeTransactionally?: never },
+105 106   ): Promise<WorkId> {
+106 107     const retryBehavior = getRetryBehavior(
+107 108       this.options.defaultRetryBehavior,
+
+src/client/index.ts --- 2/12 --- TypeScript
+141 142     >,
+142 143     argsArray: Array<Args>,
+143 144     options?: RetryOption &
+... 145       EnqueueOptions<Context, ReturnType> & { completeTransactionally?: never },
+144 146   ): Promise<WorkId[]> {
+145 147     const retryBehavior = getRetryBehavior(
+146 148       this.options.defaultRetryBehavior,
+
+src/client/index.ts --- 3/12 --- TypeScript
+176       NoInfer<ReturnType>            178       NoInfer<ReturnType>
+177     >,                               179     >,
+178     fnArgs: Args,                    180     fnArgs: Args,
+179     options?: EnqueueOptions<Contex  181     options?: TransactionalEnqueueO
+... t, ReturnType>,                      ... ptions<Context, ReturnType>,
+180   ): Promise<WorkId> {               182   ): Promise<WorkId> {
+181     return enqueue(this.component,   183     return enqueue(this.component, 
+... ctx, "mutation", fn, fnArgs, {       ... ctx, "mutation", fn, fnArgs, {
+182       ...this.options,               184       ...this.options,
+
+src/client/index.ts --- 4/12 --- TypeScript
+207       NoInfer<ReturnType>            209       NoInfer<ReturnType>
+208     >,                               210     >,
+209     argsArray: Array<Args>,          211     argsArray: Array<Args>,
+210     options?: EnqueueOptions<Contex  212     options?: TransactionalEnqueueO
+... t, ReturnType>,                      ... ptions<Context, ReturnType>,
+211   ): Promise<WorkId[]> {             213   ): Promise<WorkId[]> {
+212     return enqueueBatch(this.compon  214     return enqueueBatch(this.compon
+... ent, ctx, "mutation", fn, argsArray  ... ent, ctx, "mutation", fn, argsArray
+... , {                                  ... , {
+213       ...this.options,               215       ...this.options,
+214       ...options,                    216       ...options,
+215     });                              217     });
+216   }                                  218   }
+217                                      219 
+218   /**                                220   /**
+219    * Enqueues a query to be run.     221    * Enqueues a query to be run.
+220    * Usually not what you want, but  222    * Usually not what you want, but
+...  it can be useful during workflows.  ...  it can be useful during workflows.
+221    * The query is run in a mutation  223    * The query always runs in its o
+...  and the result is returned to the   ... wn snapshot. With completeTransacti
+... caller,                              ... onally,
+...                                      224    * its success callback and compl
+...                                      ... etion bookkeeping commit together, 
+...                                      ... without
+222    * so it can conflict if other mu  225    * adding the query's reads to th
+... tations are writing the value.       ... at transaction's conflict detection
+...                                      ... .
+223    *                                 226    *
+224    * @param ctx - The mutation or a  227    * @param ctx - The mutation or a
+... ction context that can call ctx.run  ... ction context that can call ctx.run
+... Mutation.                            ... Mutation.
+225    * @param fn - The query to run,   228    * @param fn - The query to run, 
+... like `internal.example.myQuery`.     ... like `internal.example.myQuery`.
+226    * @param fnArgs - The arguments   229    * @param fnArgs - The arguments 
+... to pass to the query.                ... to pass to the query.
+227    * @param options - The options f  230    * @param options - The options f
+... or the query to specify onComplete   ... or the query to specify onComplete 
+... handling                             ... handling
+228    *   and scheduling via `runAt` o  231    *   and scheduling via `runAt` o
+... r `runAfter`.                        ... r `runAfter`.
+229    */                                232    */
+230   async enqueueQuery<Args extends D  233   async enqueueQuery<Args extends D
+... efaultFunctionArgs, Context, Return  ... efaultFunctionArgs, Context, Return
+... Type>(                               ... Type>(
+231     ctx: MutationCtx | ActionCtx,    234     ctx: MutationCtx | ActionCtx,
+232     fn: FunctionReference<           235     fn: FunctionReference<
+
+src/client/index.ts --- 5/12 --- TypeScript
+236       NoInfer<ReturnType>            239       NoInfer<ReturnType>
+237     >,                               240     >,
+238     fnArgs: Args,                    241     fnArgs: Args,
+239     options?: EnqueueOptions<Contex  242     options?: TransactionalEnqueueO
+... t, ReturnType>,                      ... ptions<Context, ReturnType>,
+240   ): Promise<WorkId> {               243   ): Promise<WorkId> {
+241     return enqueue(this.component,   244     return enqueue(this.component, 
+... ctx, "query", fn, fnArgs, {          ... ctx, "query", fn, fnArgs, {
+242       ...this.options,               245       ...this.options,
+
+src/client/index.ts --- 6/12 --- TypeScript
+268       NoInfer<ReturnType>            271       NoInfer<ReturnType>
+269     >,                               272     >,
+270     argsArray: Array<Args>,          273     argsArray: Array<Args>,
+271     options?: EnqueueOptions<Contex  274     options?: TransactionalEnqueueO
+... t, ReturnType>,                      ... ptions<Context, ReturnType>,
+272   ): Promise<WorkId[]> {             275   ): Promise<WorkId[]> {
+273     return enqueueBatch(this.compon  276     return enqueueBatch(this.compon
+... ent, ctx, "query", fn, argsArray, {  ... ent, ctx, "query", fn, argsArray, {
+274       ...this.options,               277       ...this.options,
+
+src/client/index.ts --- 7/12 --- TypeScript
+423 };                                   426 };
+424                                      427 
+425 export type WorkpoolOptions = {      428 export type WorkpoolOptions = {
+426   /** How many actions/mutations ca  429   /** How many actions, mutations, 
+... n be running at once within this po  ... and queries can run at once within 
+... ol.                                  ... this pool.
+427    * Suggested max: 100 on Pro, 20   430    * Suggested max: 100 on Pro, 20 
+... on free plan.                        ... on free plan.
+428    * If set to 0, no new work will   431    * If set to 0, no new work will 
+... be started.                          ... be started.
+429    */                                432    */
+430   maxParallelism?: number;           433   maxParallelism?: number;
+431   /** How much to log. This is upda  434   /** How much to log. This is upda
+... ted on each call to `enqueue*`,      ... ted on each call to `enqueue*`,
+432    * `status`, or `cancel*`.         435    * `status`, or `cancel*`.
+
+src/client/index.ts --- 8/12 --- TypeScript
+525 528     }
+526 529 );
+... 530 
+... 531 /** Options for work that can complete in the enqueuing transaction. */
+... 532 export type TransactionalEnqueueOptions<
+... 533   Context = unknown,
+... 534   ReturnValue = unknown,
+... 535 > = EnqueueOptions<Context, ReturnValue> & {
+... 536   /**
+... 537    * Commit successful work, its selected onComplete callback, and completion
+... 538    * bookkeeping in one transaction. Defaults to false. Callback or bookkeeping
+... 539    * errors roll back the work; recovery later reports the job as failed.
+... 540    * The work and callback share transaction limits, with headroom reserved for
+... 541    * bookkeeping. Failure and cancellation callbacks keep their usual behavior.
+... 542    * Supported by mutation and query enqueue methods. Queries use an independent
+... 543    * snapshot without adding read dependencies to the completion transaction.
+... 544    */
+... 545   completeTransactionally?: boolean;
+... 546 };
+527 547 
+528 548 export type OnCompleteArgs<Context = unknown, Returns = unknown> = {
+529 549   /**
+
+src/client/index.ts --- 9/12 --- TypeScript
+569     | FunctionReference<FunctionTyp  589     | FunctionReference<FunctionTyp
+... e, FunctionVisibility>               ... e, FunctionVisibility>
+570     | FunctionHandle<FunctionType,   590     | FunctionHandle<FunctionType, 
+... DefaultFunctionArgs>,                ... DefaultFunctionArgs>,
+571   opts:                              591   opts:
+572     | (EnqueueOptions<Context, Retu  592     | (TransactionalEnqueueOptions<
+... rnType> &                            ... Context, ReturnType> &
+573         Partial<Config> & { retryBe  593         Partial<Config> & { retryBe
+... havior?: RetryBehavior })            ... havior?: RetryBehavior })
+574     | undefined,                     594     | undefined,
+575 ) {                                  595 ) {
+
+src/client/index.ts --- 10/12 --- TypeScript
+580 600   return {
+581 601     fnHandle,
+582 602     fnName,
+... 603     completeTransactionally: opts?.completeTransactionally,
+583 604     onComplete: opts?.onComplete
+584 605       ? {
+585 606           fnHandle: await createFunctionHandle(opts.onComplete),
+
+src/client/index.ts --- 11/12 --- TypeScript
+636 657     retryBehavior?: RetryBehavior;
+637 658     maxParallelism?: number;
+638 659     logLevel?: LogLevel;
+... 660     /** Mutations and queries only; see {@link TransactionalEnqueueOptions}. */
+... 661     // Wrapped in a tuple so a union FnType is checked as a whole rather than
+... 662     // distributed, which would admit action-capable calls.
+... 663     completeTransactionally?: [FnType] extends ["mutation" | "query"]
+... 664       ? boolean
+... 665       : never;
+639 666   },
+640 667 ): Promise<WorkId[]> {
+641 668   const { config, ...defaults } = await enqueueArgs(fn, options);
+
+src/client/index.ts --- 12/12 --- TypeScript
+699 726     retryBehavior?: RetryBehavior;
+700 727     maxParallelism?: number;
+701 728     logLevel?: LogLevel;
+... 729     /** Mutations and queries only; see {@link TransactionalEnqueueOptions}. */
+... 730     // Wrapped in a tuple so a union FnType is checked as a whole rather than
+... 731     // distributed, which would admit action-capable calls.
+... 732     completeTransactionally?: [FnType] extends ["mutation" | "query"]
+... 733       ? boolean
+... 734       : never;
+702 735   },
+703 736 ): Promise<WorkId> {
+704 737   const id = await ctx.runMutation(component.lib.enqueue, {
+
+src/component/_generated/api.ts --- 1/2 --- Text (2 TypeScript parse errors, exceeded DFT_PARSE_ERROR_LIMIT)
+14 14 import type * as errors from "../errors.js";
+15 15 import type * as kick from "../kick.js";
+16 16 import type * as lib from "../lib.js";
+.. 17 import type * as limits from "../limits.js";
+17 18 import type * as logging from "../logging.js";
+18 19 import type * as loop from "../loop.js";
+19 20 import type * as migrations from "../migrations.js";
+
+src/component/_generated/api.ts --- 2/2 --- Text (2 TypeScript parse errors, exceeded DFT_PARSE_ERROR_LIMIT)
+36 37   errors: typeof errors;
+37 38   kick: typeof kick;
+38 39   lib: typeof lib;
+.. 40   limits: typeof limits;
+39 41   logging: typeof logging;
+40 42   loop: typeof loop;
+41 43   migrations: typeof migrations;
+
+src/component/_generated/component.ts --- 1/2 --- TypeScript
+ 65  65             logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+ 66  66             maxParallelism?: number;
+ 67  67           };
+ ..  68           completeTransactionally?: boolean;
+ 68  69           fnArgs: any;
+ 69  70           fnHandle: string;
+ 70  71           fnName: string;
+
+src/component/_generated/component.ts --- 2/2 --- TypeScript
+ 93  94             maxParallelism?: number;
+ 94  95           };
+ 95  96           items: Array<{
+ ..  97             completeTransactionally?: boolean;
+ 96  98             fnArgs: any;
+ 97  99             fnHandle: string;
+ 98 100             fnName: string;
+
+src/component/complete.ts --- 1/5 --- TypeScript
+  8   8 import { type OnCompleteArgs, type RunResult, vResult } from "./shared.js";
+  9   9 import { recordCompleted } from "./stats.js";
+ 10  10 import { assert } from "convex-helpers";
+ ..  11 import { completionTransactionLimits } from "./limits.js";
+ 11  12 
+ 12  13 export type CompleteJob = Infer<typeof completeArgs.fields.jobs.element>;
+ 13  14 
+
+src/component/complete.ts --- 2/5 --- TypeScript
+ 26  27 export async function completeHandler(
+ 27  28   ctx: MutationCtx,
+ 28  29   args: Infer<typeof completeArgs>,
+ ..  30   { transactionalSuccess = false }: { transactionalSuccess?: boolean } = {},
+ 29  31 ) {
+ ..  32   if (transactionalSuccess) {
+ ..  33     assert(args.jobs.length === 1 && args.jobs[0].runResult.kind === "success");
+ ..  34   }
+ 30  35   const globals = await ctx.db.query("globals").unique();
+ 31  36   const console = createLogger(globals?.logLevel);
+ 32  37   if (args.jobs.length === 0) {
+
+src/component/complete.ts --- 3/5 --- TypeScript
+145 150               context,
+146 151               result: job.runResult,
+147 152             };
+... 153             if (transactionalSuccess) {
+... 154               await ctx.runMutation(handle, onCompleteArgs, {
+... 155                 transactionLimits: await completionTransactionLimits(ctx),
+... 156               });
+148 157             } else if (job.runOnCompleteInline) {
+149 158               try {
+150 159                 await ctx.runMutation(handle, onCompleteArgs);
+151 160               } catch (e) {
+
+src/component/complete.ts --- 4/5 --- TypeScript
+169 178               );
+170 179             }
+171 180           } catch (e) {
+... 181             if (transactionalSuccess) throw e;
+172 182             console.error(
+173 183               `[complete] error running onComplete for ${job.workId}`,
+174 184               e,
+
+src/component/complete.ts --- 5/5 --- TypeScript
+178         }                            188         }
+179         recordCompleted(console, wo  189         recordCompleted(console, wo
+... rk, job.runResult.kind, scheduledId  ... rk, job.runResult.kind, scheduledId
+... );                                   ... );
+180                                      190 
+181         // Clean up any large data   191         // Clean up separately stor
+... that was stored separately. Deletin  ... ed data. Ordinary completion tolera
+... g a                                  ... tes a
+182         // nonexistent doc throws;   192         // missing payload; transac
+... this cleanup must not fail the comp  ... tional success must roll back on er
+... letion.                              ... rors.
+183         if (work.payloadId) {        193         if (work.payloadId) {
+184           try {                      194           try {
+185             await ctx.db.delete("pa  195             await ctx.db.delete("pa
+... yload", work.payloadId);             ... yload", work.payloadId);
+186           } catch (e) {              196           } catch (e) {
+...                                      197             if (transactionalSucces
+...                                      ... s) throw e;
+187             console.warn(            198             console.warn(
+188               `[complete] couldn't   199               `[complete] couldn't 
+... delete payload for ${job.workId}: $  ... delete payload for ${job.workId}: $
+... {e}`,                                ... {e}`,
+189             );                       200             );
+
+src/component/lib.test.ts --- TypeScript
+37 37   });
+38 38 
+39 39   describe("enqueue", () => {
+.. 40     it.each([false, true])(
+.. 41       "rejects transactional actions before enqueueing work (batch: %s)",
+.. 42       async (batch) => {
+.. 43         const item = {
+.. 44           fnHandle: "workHandle",
+.. 45           fnName: "work",
+.. 46           fnArgs: { padding: "x".repeat(10_000) },
+.. 47           fnType: "action" as const,
+.. 48           runAt: Date.now(),
+.. 49           completeTransactionally: true,
+.. 50         };
+.. 51         await expect(
+.. 52           batch
+.. 53             ? t.mutation(api.lib.enqueueBatch, {
+.. 54                 items: [{ ...item, fnType: "mutation" }, item],
+.. 55                 config: {},
+.. 56               })
+.. 57             : t.mutation(api.lib.enqueue, { ...item, config: {} }),
+.. 58         ).rejects.toThrow(
+.. 59           "completeTransactionally is only supported for mutations and queries",
+.. 60         );
+.. 61         await t.run(async (ctx) => {
+.. 62           expect(await ctx.db.query("work").collect()).toEqual([]);
+.. 63           expect(await ctx.db.query("pendingStart").collect()).toEqual([]);
+.. 64           expect(await ctx.db.query("payload").collect()).toEqual([]);
+.. 65           expect(await ctx.db.query("globals").collect()).toEqual([]);
+.. 66         });
+.. 67       },
+.. 68     );
+.. 69 
+40 70     it.each([false, true])(
+41 71       "accepts legacy, empty, and populated callback exclusions (batch: %s)",
+
+src/component/lib.ts --- 1/3 --- TypeScript
+ 41  41   runAt: v.number(),
+ 42  42   // TODO: annotation?
+ 43  43   onComplete: v.optional(vOnCompleteFnContext),
+ ..  44   completeTransactionally: v.optional(v.boolean()),
+ 44  45   retryBehavior: v.optional(retryBehavior),
+ 45  46 };
+ ..  47 
+ ..  48 function validateCompletionMode(item: ObjectType<typeof itemArgs>) {
+ ..  49   if (item.completeTransactionally && item.fnType === "action") {
+ ..  50     throw new Error(
+ ..  51       "completeTransactionally is only supported for mutations and queries.",
+ ..  52     );
+ ..  53   }
+ ..  54 }
+ 46  55 const enqueueArgs = {
+ 47  56   ...itemArgs,
+ 48  57   config: vConfig.partial(),
+
+src/component/lib.ts --- 2/3 --- TypeScript
+ 51  60   args: enqueueArgs,
+ 52  61   returns: v.id("work"),
+ 53  62   handler: async (ctx, { config, ...itemArgs }) => {
+ ..  63     validateCompletionMode(itemArgs);
+ 54  64     const globals = await getOrUpdateGlobals(ctx, config);
+ 55  65     const console = createLogger(globals.logLevel);
+ 56  66     await kickMainLoop(ctx, "enqueue");
+
+src/component/lib.ts --- 3/3 --- TypeScript
+143 153   },
+144 154   returns: v.array(v.id("work")),
+145 155   handler: async (ctx, { config, items }) => {
+... 156     // Validate before any of the batch starts enqueueing work.
+... 157     for (const item of items) validateCompletionMode(item);
+146 158     const globals = await getOrUpdateGlobals(ctx, config);
+147 159     const console = createLogger(globals.logLevel);
+148 160     await kickMainLoop(ctx, "enqueue");
+
+src/component/limits.ts --- TypeScript
+ 1 import type { TransactionLimits } from "convex/server";
+ 2 import type { MutationCtx } from "./_generated/server.js";
+ 3 
+ 4 // Leave space for the work/payload reads and deletes, the completion record,
+ 5 // and waking the loop or scheduling failure completion. Byte reserves include
+ 6 // room for a large document crossing the nested call's limit.
+ 7 const COMPLETION_RESERVE = {
+ 8   bytesRead: 3 * 1024 * 1024,
+ 9   bytesWritten: 2 * 1024 * 1024,
+10   databaseQueries: 32,
+11   documentsRead: 32,
+12   documentsWritten: 16,
+13   functionsScheduled: 4,
+14   scheduledFunctionArgsBytes: 1024 * 1024,
+15 } satisfies TransactionLimits;
+16 
+17 export async function completionTransactionLimits(
+18   ctx: MutationCtx,
+19 ): Promise<TransactionLimits> {
+20   const metrics = await ctx.meta.getTransactionMetrics();
+21   const limits: TransactionLimits = {};
+22   for (const key of Object.keys(
+23     COMPLETION_RESERVE,
+24   ) as (keyof typeof COMPLETION_RESERVE)[]) {
+25     limits[key] = Math.max(0, metrics[key].remaining - COMPLETION_RESERVE[key]);
+26   }
+27   return limits;
+28 }
+29 
+
+src/component/loop.test.ts --- TypeScript
+392 392       expect(mutationRunning.scheduledId).not.toBe(actionRunning.scheduledId);
+393 393     });
+... 394 
+... 395     it("runs transactional queries in individual mutation wrappers", async () => {
+... 396       await initialize({ maxParallelism: 5 });
+... 397       const actionId = await enqueueWork({ fnType: "action" });
+... 398       const queryId = await enqueueWork({
+... 399         fnType: "query",
+... 400         completeTransactionally: false,
+... 401       });
+... 402       const transactionalIds = [
+... 403         await enqueueWork({ fnType: "query", completeTransactionally: true }),
+... 404         await enqueueWork({ fnType: "query", completeTransactionally: true }),
+... 405       ];
+... 406       await runLoop();
+... 407       const { running } = await observe();
+... 408       const action = running.find((r) => r.workId === actionId)!;
+... 409       expect(running.find((r) => r.workId === queryId)?.scheduledId).toBe(
+... 410         action.scheduledId,
+... 411       );
+... 412       const scheduled = await t.run(async (ctx) =>
+... 413         Promise.all(
+... 414           transactionalIds.map(async (id) => {
+... 415             const { scheduledId } = running.find((r) => r.workId === id)!;
+... 416             expect(scheduledId).not.toBe(action.scheduledId);
+... 417             return ctx.db.system.get("_scheduled_functions", scheduledId);
+... 418           }),
+... 419         ),
+... 420       );
+... 421       expect(new Set(scheduled.map((s) => s?._id)).size).toBe(2);
+... 422       for (const job of scheduled) {
+... 423         expect(job).toMatchObject({
+... 424           name: "worker:runMutationWrapper",
+... 425           args: [{ fnType: "query", completeTransactionally: true }],
+... 426         });
+... 427       }
+... 428     });
+394 429 
+395 430     it("chunks action and query starts into batches of 32", async () => {
+396 431       await initialize({ maxParallelism: 64 });
+
+src/component/loop.ts --- 1/3 --- TypeScript
+714 714   const actionOrQuery = starts.filter(
+715 715     ({ work }) =>
+... 716       work.fnType === "action" ||
+... 717       (work.fnType === "query" && !work.completeTransactionally),
+716 718   );
+717 719   for (let i = 0; i < actionOrQuery.length; i += START_BATCH_SIZE) {
+718 720     const batch = actionOrQuery.slice(i, i + START_BATCH_SIZE);
+
+src/component/loop.ts --- 2/3 --- TypeScript
+740 742 
+741 743   const mutationStarts = starts.filter(
+742 744     ({ work }) =>
+... 745       work.fnType === "mutation" ||
+... 746       (work.fnType === "query" && work.completeTransactionally),
+743 747   );
+744 748   for (const { work, lagMs } of mutationStarts) {
+745 749     const scheduledId = await ctx.scheduler.runAfter(
+
+src/component/loop.ts --- 3/3 --- TypeScript
+752 756         payloadId: work.payloadId,
+753 757         logLevel,
+754 758         attempt: work.attempts,
+755 759         fnType: work.fnType === "query" ? "query" : "mutation",
+... 760         completeTransactionally: work.completeTransactionally,
+756 761       },
+757 762     );
+758 763     recordStarted(console, work, lagMs, scheduledId);
+
+src/component/schema.ts --- TypeScript
+64 64     payloadSize: v.optional(v.number()),
+65 65     attempts: v.number(), // number of completed attempts
+66 66     onComplete: v.optional(vOnCompleteFnContext),
+.. 67     completeTransactionally: v.optional(v.boolean()),
+67 68     retryBehavior: v.optional(retryBehavior),
+68 69     canceled: v.optional(v.boolean()),
+69 70     // May point to a deleted entry after starting, or be absent on legacy work.
+
+src/component/worker.test.ts --- TypeScript
+  1 import { convexTest } from "convex-test";
+  2 import batchWorker from "@convex-dev/batch-worker/test";
+  3 import {
+  4   anyApi,
+  5   createFunctionHandle,
+  6   type ApiFromModules,
+  7   type FunctionArgs,
+  8 } from "convex/server";
+  9 import { v } from "convex/values";
+ 10 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+ 11 import { internal } from "./_generated/api.js";
+ 12 import { internalMutation, internalQuery } from "./_generated/server.js";
+ 13 import type { Id } from "./_generated/dataModel.js";
+ 14 import { recoveryHandler } from "./recovery.js";
+ 15 import schema from "./schema.js";
+ 16 import { vResult, type RunResult } from "./shared.js";
+ 17 import * as kick from "./kick.js";
+ 18 import { completionTransactionLimits } from "./limits.js";
+ 19 
+ 20 const modules = import.meta.glob("./**/*.ts");
+ 21 
+ 22 const calls = vi.fn<(kind: string) => void>();
+ 23 const queryInputs = vi.fn<(input: unknown) => void>();
+ 24 const fixtures = {
+ 25   work: internalMutation({
+ 26     args: { fail: v.boolean(), padding: v.optional(v.string()) },
+ 27     returns: v.id("payload"),
+ 28     handler: async (ctx, { fail }) => {
+ 29       calls("work");
+ 30       const id = await ctx.db.insert("payload", { args: { effect: "work" } });
+ 31       if (fail) throw new Error("work failed");
+ 32       return id;
+ 33     },
+ 34   }),
+ 35   query: internalQuery({
+ 36     args: {
+ 37       fail: v.boolean(),
+ 38       padding: v.optional(v.string()),
+ 39       sourceId: v.id("payload"),
+ 40     },
+ 41     returns: v.id("payload"),
+ 42     handler: async (ctx, { fail, sourceId }) => {
+ 43       calls("query");
+ 44       const source = await ctx.db.get("payload", sourceId);
+ 45       queryInputs(source?.args?.input);
+ 46       expect(source?.args?.input).toBe(true);
+ 47       if (fail) throw new Error("query failed");
+ 48       return sourceId;
+ 49     },
+ 50   }),
+ 51   callback: internalMutation({
+ 52     args: {
+ 53       workId: v.id("work"),
+ 54       context: v.object({
+ 55         failOnSuccess: v.boolean(),
+ 56         query: v.optional(v.boolean()),
+ 57         padding: v.optional(v.string()),
+ 58       }),
+ 59       result: vResult,
+ 60     },
+ 61     returns: v.null(),
+ 62     handler: async (ctx, { context, result }) => {
+ 63       calls(result.kind);
+ 64       if (result.kind === "success") {
+ 65         // The callback must be able to read the nested work's writes.
+ 66         const effect = await ctx.db.get(
+ 67           "payload",
+ 68           result.returnValue as Id<"payload">,
+ 69         );
+ 70         expect(effect?.args).toMatchObject(
+ 71           context.query ? { input: true } : { effect: "work" },
+ 72         );
+ 73       }
+ 74       await ctx.db.insert("payload", { args: { effect: result.kind } });
+ 75       if (context.failOnSuccess && result.kind === "success") {
+ 76         throw new Error("callback failed");
+ 77       }
+ 78       return null;
+ 79     },
+ 80   }),
+ 81 };
+ 82 const refs = (
+ 83   anyApi as unknown as ApiFromModules<{ workerFixtures: typeof fixtures }>
+ 84 ).workerFixtures;
+ 85 
+ 86 describe("transactional completion", () => {
+ 87   function setup() {
+ 88     const t = convexTest({
+ 89       schema,
+ 90       modules: { ...modules, "./workerFixtures.ts": async () => fixtures },
+ 91       transactionLimits: true,
+ 92     });
+ 93     batchWorker.register(t);
+ 94     return t;
+ 95   }
+ 96   let t: ReturnType<typeof setup>;
+ 97   beforeEach(() => {
+ 98     vi.useFakeTimers();
+ 99     calls.mockClear();
+100     queryInputs.mockClear();
+101     t = setup();
+102   });
+103   afterEach(async () => {
+104     vi.restoreAllMocks();
+105     await t.finishAllScheduledFunctions(vi.runAllTimers);
+106     vi.useRealTimers();
+107   });
+108   const drain = () => t.finishAllScheduledFunctions(vi.runAllTimers);
+109   const effects = () =>
+110     t.run(async (ctx) =>
+111       (await ctx.db.query("payload").collect()).flatMap((p) =>
+112         p.args?.effect ? [p.args.effect] : [],
+113       ),
+114     );
+115   async function start({
+116     transactional = true,
+117     failWork = false,
+118     failCallback = false,
+119     callback = true,
+120     excludeKinds,
+121     largePayload = false,
+122     fnType = "mutation",
+123   }: {
+124     transactional?: boolean;
+125     failWork?: boolean;
+126     failCallback?: boolean;
+127     callback?: boolean;
+128     excludeKinds?: RunResult["kind"][];
+129     largePayload?: boolean;
+130     fnType?: "mutation" | "query";
+131   } = {}) {
+132     return t.run(async (ctx) => {
+133       const fnHandle = await createFunctionHandle(
+134         fnType === "query" ? refs.query : refs.work,
+135       );
+136       const sourceId =
+137         fnType === "query"
+138           ? await ctx.db.insert("payload", { args: { input: true } })
+139           : undefined;
+140       const fnArgs = {
+141         fail: failWork,
+142         ...(largePayload ? { padding: "a".repeat(12_000) } : {}),
+143         ...(sourceId ? { sourceId } : {}),
+144       };
+145       const context = {
+146         failOnSuccess: failCallback,
+147         query: fnType === "query",
+148         ...(largePayload ? { padding: "c".repeat(12_000) } : {}),
+149       };
+150       const payloadId = largePayload
+151         ? await ctx.db.insert("payload", { args: fnArgs, context })
+152         : undefined;
+153       const workId = await ctx.db.insert("work", {
+154         fnHandle,
+155         fnName: "work",
+156         fnType,
+157         attempts: 0,
+158         fnArgs: largePayload ? undefined : fnArgs,
+159         payloadId,
+160         payloadSize: largePayload ? 25_000 : undefined,
+161         completeTransactionally: transactional,
+162         onComplete: callback
+163           ? {
+164               fnHandle: await createFunctionHandle(refs.callback),
+165               context: largePayload ? undefined : context,
+166               excludeKinds,
+167             }
+168           : undefined,
+169       });
+170       const args: FunctionArgs<typeof internal.worker.runMutationWrapper> = {
+171         workId,
+172         fnHandle,
+173         fnArgs: largePayload ? undefined : fnArgs,
+174         payloadId,
+175         fnType,
+176         attempt: 0,
+177         logLevel: "ERROR",
+178         completeTransactionally: transactional,
+179       };
+180       const scheduledId = await ctx.scheduler.runAfter(
+181         0,
+182         internal.worker.runMutationWrapper,
+183         args,
+184       );
+185       await ctx.db.insert("globals", { maxParallelism: 1, logLevel: "ERROR" });
+186       // The main loop normally records this when it schedules the wrapper.
+187       await ctx.db.insert("internalState", {
+188         segmentCursors: { incoming: 0n, completion: 0n, cancelation: 0n },
+189         lastRecovery: 0n,
+190         report: {
+191           completed: 0,
+192           succeeded: 0,
+193           failed: 0,
+194           canceled: 0,
+195           retries: 0,
+196           lastReportTs: Date.now(),
+197         },
+198         running: [{ workId, scheduledId, started: Date.now() }],
+199       });
+200       return {
+201         workId,
+202         scheduledId,
+203         attempt: 0,
+204         started: Date.now(),
+205         payloadId,
+206         sourceId,
+207         args,
+208       };
+209     });
+210   }
+211   async function recover(
+212     job: Awaited<ReturnType<typeof start>>,
+213     error: string,
+214   ) {
+215     const { workId, scheduledId, attempt, started } = job;
+216     const jobs = [{ workId, scheduledId, attempt, started }];
+217     await t.run(async (ctx) => {
+218       const scheduled = await ctx.db.system.get(
+219         "_scheduled_functions",
+220         job.scheduledId,
+221       );
+222       expect(scheduled?.state.kind).toBe("failed");
+223       if (!scheduled) throw new Error("Missing scheduled job");
+224       // convex-test 0.0.53 records real scheduler failures without the required
+225       // error string. Supply only that missing field; recovery runs unchanged.
+226       const get = vi.spyOn(ctx.db.system, "get").mockResolvedValue({
+227         ...scheduled,
+228         state: { kind: "failed", error },
+229       });
+230       await recoveryHandler(ctx, { jobs });
+231       get.mockRestore();
+232     });
+233     await drain();
+234     // A second recovery scan must not deliver another callback.
+235     await t.mutation(internal.recovery.recover, { jobs });
+236     await drain();
+237   }
+238   async function expectFinished(job: Awaited<ReturnType<typeof start>>) {
+239     await t.run(async (ctx) => {
+240       expect(await ctx.db.get("work", job.workId)).toBeNull();
+241       if (job.payloadId)
+242         expect(await ctx.db.get("payload", job.payloadId)).toBeNull();
+243       expect(await ctx.db.query("pendingCompletion").collect()).toEqual([]);
+244       expect((await ctx.db.query("internalState").unique())?.running).toEqual(
+245         [],
+246       );
+247     });
+248   }
+249 
+250   test.each([false, true])(
+251     "commits work, callback, and cleanup together (large payload: %s)",
+252     async (largePayload) => {
+253       const job = await start({ largePayload });
+254       await drain();
+255       expect(await effects()).toEqual(["work", "success"]);
+256       expect(calls.mock.calls.flat()).toEqual(["work", "success"]);
+257       await expectFinished(job);
+258       await t.run(async (ctx) => {
+259         const scheduled = await ctx.db.system
+260           .query("_scheduled_functions")
+261           .collect();
+262         expect(
+263           scheduled.some(
+264             (s) =>
+265               s.name === "complete:complete" ||
+266               s.name === "workerFixtures:callback",
+267           ),
+268         ).toBe(false);
+269       });
+270     },
+271   );
+272 
+273   test.each([
+274     {},
+275     { excludeKinds: ["success", "canceled"] as const },
+276     { excludeKinds: ["success", "failed", "canceled"] as const },
+277   ])("finishes without a success callback ($excludeKinds)", async (options) => {
+278     const job = await start({
+279       callback: "excludeKinds" in options,
+280       excludeKinds: options.excludeKinds && [...options.excludeKinds],
+281     });
+282     await drain();
+283     expect(await effects()).toEqual(["work"]);
+284     expect(calls.mock.calls.flat()).toEqual(["work"]);
+285     await expectFinished(job);
+286   });
+287 
+288   test.each(["callback", "bookkeeping"] as const)(
+289     "%s failure rolls back all writes, then recovery records failure once",
+290     async (failure) => {
+291       const job = await start({
+292         failCallback: failure === "callback",
+293         largePayload: true,
+294       });
+295       if (failure === "bookkeeping") {
+296         // Fail after the work and callback wrote data and cleanup deleted the job.
+297         vi.spyOn(kick, "kickMainLoop").mockRejectedValueOnce(
+298           new Error("bookkeeping failed"),
+299         );
+300       }
+301       await drain();
+302       expect(await effects()).toEqual([]);
+303       expect(calls.mock.calls.flat()).toEqual(["work", "success"]);
+304       await t.run(async (ctx) => {
+305         expect(await ctx.db.get("work", job.workId)).toMatchObject({
+306           attempts: 0,
+307         });
+308         expect(await ctx.db.get("payload", job.payloadId!)).not.toBeNull();
+309         expect(await ctx.db.query("pendingCompletion").collect()).toEqual([]);
+310       });
+311       vi.restoreAllMocks();
+312       await recover(job, `${failure} failed`);
+313       expect(await effects()).toEqual(["failed"]);
+314       expect(calls.mock.calls.flat()).toEqual(["work", "success", "failed"]);
+315       await expectFinished(job);
+316     },
+317   );
+318 
+319   test("recovery respects a success-only filter after rollback", async () => {
+320     const job = await start({
+321       failCallback: true,
+322       excludeKinds: ["failed", "canceled"],
+323     });
+324     await drain();
+325     await recover(job, "callback failed");
+326     expect(await effects()).toEqual([]);
+327     expect(calls.mock.calls.flat()).toEqual(["work", "success"]);
+328     await expectFinished(job);
+329   });
+330 
+331   test("work failure keeps the usual failure-completion path", async () => {
+332     const job = await start({ failWork: true });
+333     await drain();
+334     expect(await effects()).toEqual(["failed"]);
+335     expect(calls.mock.calls.flat()).toEqual(["work", "failed"]);
+336     await expectFinished(job);
+337   });
+338 
+339   test("default completion preserves work when a success callback fails", async () => {
+340     const job = await start({ transactional: false, failCallback: true });
+341     await drain();
+342     expect(await effects()).toEqual(["work"]);
+343     expect(calls.mock.calls.flat()).toEqual(["work", "success"]);
+344     await expectFinished(job);
+345   });
+346 
+347   test("replaying a completed transactional wrapper does not repeat the work", async () => {
+348     const job = await start();
+349     await drain();
+350     await t.mutation(internal.worker.runMutationWrapper, job.args);
+351     expect(await effects()).toEqual(["work", "success"]);
+352     expect(calls.mock.calls.flat()).toEqual(["work", "success"]);
+353   });
+354 
+355   test.each([false, true])(
+356     "query success commits its callback and cleanup (large payload: %s)",
+357     async (largePayload) => {
+358       const job = await start({ fnType: "query", largePayload });
+359       await drain();
+360       expect(await effects()).toEqual(["success"]);
+361       expect(calls.mock.calls.flat()).toEqual(["query", "success"]);
+362       await expectFinished(job);
+363       await t.run(async (ctx) => {
+364         const scheduled = await ctx.db.system
+365           .query("_scheduled_functions")
+366           .collect();
+367         expect(
+368           scheduled.some(
+369             (s) =>
+370               s.name === "complete:complete" ||
+371               s.name === "workerFixtures:callback",
+372           ),
+373         ).toBe(false);
+374       });
+375     },
+376   );
+377 
+378   test.each([true, false, undefined])(
+379     "queries read committed snapshots regardless of transactional completion (%s)",
+380     async (completeTransactionally) => {
+381       const job = await start({
+382         fnType: "query",
+383         transactional: completeTransactionally ?? false,
+384         callback: false,
+385       });
+386       await t.run(async (ctx) => {
+387         // Invoke the wrapper inside a transaction with uncommitted changes.
+388         // The query fixture succeeds only if it still sees the committed input.
+389         await ctx.scheduler.cancel(job.scheduledId);
+390         await ctx.db.patch("payload", job.sourceId!, {
+391           args: { input: false },
+392         });
+393         await ctx.runMutation(internal.worker.runMutationWrapper, {
+394           ...job.args,
+395           completeTransactionally,
+396         });
+397       });
+398       await drain();
+399       expect(calls.mock.calls.flat()).toEqual(["query"]);
+400       expect(queryInputs).toHaveBeenCalledExactlyOnceWith(true);
+401       await expectFinished(job);
+402     },
+403   );
+404 
+405   test.each(["callback", "bookkeeping"] as const)(
+406     "query %s failure rolls back completion and recovers once",
+407     async (failure) => {
+408       const job = await start({
+409         fnType: "query",
+410         failCallback: failure === "callback",
+411         largePayload: true,
+412       });
+413       if (failure === "bookkeeping")
+414         vi.spyOn(kick, "kickMainLoop").mockRejectedValueOnce(
+415           new Error("bookkeeping failed"),
+416         );
+417       await drain();
+418       expect(await effects()).toEqual([]);
+419       await t.run(async (ctx) => {
+420         expect(await ctx.db.get("work", job.workId)).toMatchObject({
+421           attempts: 0,
+422         });
+423         expect(await ctx.db.get("payload", job.payloadId!)).not.toBeNull();
+424         expect(await ctx.db.query("pendingCompletion").collect()).toEqual([]);
+425       });
+426       vi.restoreAllMocks();
+427       await recover(job, `${failure} failed`);
+428       expect(await effects()).toEqual(["failed"]);
+429       expect(calls.mock.calls.flat()).toEqual(["query", "success", "failed"]);
+430       await expectFinished(job);
+431     },
+432   );
+433 
+434   test.each([
+435     { excludeKinds: ["success", "failed", "canceled"] },
+436     { excludeKinds: ["success", "canceled"] },
+437   ] satisfies {
+438     excludeKinds: RunResult["kind"][];
+439   }[])(
+440     "finishes a transactional query with success excluded ($excludeKinds)",
+441     async ({ excludeKinds }) => {
+442       const job = await start({ fnType: "query", excludeKinds });
+443       await drain();
+444       expect(await effects()).toEqual([]);
+445       expect(calls.mock.calls.flat()).toEqual(["query"]);
+446       await expectFinished(job);
+447     },
+448   );
+449 
+450   test("query errors preserve normal failure handling", async () => {
+451     const job = await start({ fnType: "query", failWork: true });
+452     await drain();
+453     expect(await effects()).toEqual(["failed"]);
+454     expect(calls.mock.calls.flat()).toEqual(["query", "failed"]);
+455     await expectFinished(job);
+456   });
+457 
+458   test("nested budgets use remaining capacity after earlier writes", async () => {
+459     await t.run(async (ctx) => {
+460       const before = await completionTransactionLimits(ctx);
+461       await ctx.db.insert("payload", {
+462         args: { padding: "x".repeat(100_000) },
+463       });
+464       const after = await completionTransactionLimits(ctx);
+465       expect(after.bytesWritten).toBeLessThan(before.bytesWritten! - 100_000);
+466       expect(after.documentsWritten).toBe(before.documentsWritten! - 1);
+467       const metrics = await ctx.meta.getTransactionMetrics();
+468       for (const key of Object.keys(after) as (keyof typeof after)[]) {
+469         expect(after[key]).toBeGreaterThanOrEqual(0);
+470         expect(after[key]).toBeLessThan(metrics[key].remaining);
+471       }
+472     });
+473   });
+474 });
+475 
+
+src/component/worker.ts --- 1/4 --- TypeScript
+16 import { failedResult, isNonRetryab   16 import { failedResult, isNonRetryab
+.. leError } from "./errors.js";         .. leError } from "./errors.js";
+17 import { createLogger, type Logger,   17 import { createLogger, type Logger,
+..  logLevel } from "./logging.js";      ..  logLevel } from "./logging.js";
+18 import type { RunResult } from "./s   18 import type { RunResult } from "./s
+.. hared.js";                            .. hared.js";
+19 import type { CompleteJob } from ".   19 import { completeHandler, type Comp
+.. /complete.js";                        .. leteJob } from "./complete.js";
+..                                       20 import { completionTransactionLimit
+..                                       .. s } from "./limits.js";
+20 import { assert } from "convex-help   21 import { assert } from "convex-help
+.. ers";                                 .. ers";
+21                                       22 
+22 const commonRunArgs = {               23 const commonRunArgs = {
+
+src/component/worker.ts --- 2/4 --- TypeScript
+39  40     payloadId: v.optional(v.id("payload")),
+40  41     fnArgs: v.optional(v.record(v.string(), v.any())),
+41  42     fnType: v.union(v.literal("query"), v.literal("mutation")),
+..  43     completeTransactionally: v.optional(v.boolean()),
+42  44     logLevel,
+43  45     attempt: v.number(),
+44  46   },
+45  47   handler: async (ctx, { workId, attempt, ...args }) => {
+46  48     const console = createLogger(args.logLevel);
+..  49 
+..  50     if (args.completeTransactionally) {
+..  51       const work = await ctx.db.get("work", workId);
+..  52       if (!work || work.attempts !== attempt) return;
+..  53     }
+47  54 
+48  55     let fnArgs = args.fnArgs;
+49  56     if (!fnArgs) {
+
+src/component/worker.ts --- 3/4 --- TypeScript
+53       fnArgs = payload.args;          60       fnArgs = payload.args;
+54     }                                 61     }
+55                                       62 
+..                                       63     let returnValue;
+56     try {                             64     try {
+57       const returnValue = await (ar   65       const runOptions = args.compl
+.. gs.fnType === "query"                 .. eteTransactionally
+..                                       66         ? { transactionLimits: awai
+..                                       .. t completionTransactionLimits(ctx) 
+..                                       .. }
+..                                       67         : undefined;
+..                                       68       returnValue = await (args.fnT
+..                                       .. ype === "query"
+58         ? ctx.runQuery(args.fnHandl   69         ? ctx.runQuery(args.fnHandl
+.. e as FunctionHandle<"query">, fnArg   .. e as FunctionHandle<"query">, fnArg
+.. s)                                    .. s, {
+..                                       70             ...runOptions,
+..                                       71             useStaleSnapshot: true,
+..                                       72           })
+59         : ctx.runMutation(args.fnHa   73         : ctx.runMutation(
+.. ndle as FunctionHandle<"mutation">,   .. 
+..  fnArgs));                            .. 
+60       // NOTE: we could run the `sa   74             args.fnHandle as Functi
+.. veResult` handler here, or call `ct   .. onHandle<"mutation">,
+.. x.runMutation`,                       .. 
+61       // but we want the mutation t   75             fnArgs,
+.. o be a separate transaction to redu   .. 
+.. ce the window for OCCs.               .. 
+..                                       76             runOptions,
+..                                       77           ));
+..                                       78       if (!args.completeTransaction
+..                                       .. ally) {
+..                                       79         // Keep the default complet
+..                                       .. ion in a separate transaction.
+62       await ctx.scheduler.runAfter(   80         await ctx.scheduler.runAfte
+.. 0, internal.complete.complete, {      .. r(0, internal.complete.complete, {
+63         jobs: [                       81           jobs: [
+64           { workId, runResult: { ki   82             { workId, runResult: { 
+.. nd: "success", returnValue }, attem   .. kind: "success", returnValue }, att
+.. pt },                                 .. empt },
+65         ],                            83           ],
+66       });                             84         });
+..                                       85         return;
+..                                       86       }
+67     } catch (e: unknown) {            87     } catch (e: unknown) {
+68       console.error(e);               88       console.error(e);
+69       const runResult = failedResul   89       const runResult = failedResul
+.. t(e);                                 .. t(e);
+
+src/component/worker.ts --- 4/4 --- TypeScript
+77  97           },
+78  98         ],
+79  99       });
+.. 100       return;
+80 101     }
+.. 102 
+.. 103     const jobs: CompleteJob[] = [
+.. 104       { workId, runResult: { kind: "success", returnValue }, attempt },
+.. 105     ];
+.. 106     // Do not catch completion failures: letting the wrapper throw rolls back
+.. 107     // the work and callback writes together. Recovery records the failure.
+.. 108     // Calling the handler directly avoids another UDF execution.
+.. 109     await completeHandler(ctx, { jobs }, { transactionalSuccess: true });
+81 110   },
+82 111 });
+83 112 
+

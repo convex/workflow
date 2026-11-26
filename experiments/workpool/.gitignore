@@ -1,0 +1,6 @@
+generated/
+convex/_generated/
+.env.local
+results.local.json
+*.jsonl
+!vendor/workpool-transactional-rebased-0.5.0.tgz

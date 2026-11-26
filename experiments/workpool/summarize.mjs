@@ -1,0 +1,228 @@
+import { readFileSync, writeFileSync, createReadStream } from "node:fs";
+import assert from "node:assert/strict";
+import { expectedSuccessCallbacks, readLogs } from "./logs.mjs";
+
+const input = process.argv[2] ?? "experiments/workpool/results.json";
+const results = JSON.parse(readFileSync(input, "utf8"));
+const samples = results.samples;
+// Interrupted runs still save their completed samples. Do not mistake such an
+// artifact for a complete experiment when reporting its medians.
+for (const workload of results.workloads) {
+  for (const parallelism of results.parallelisms) {
+    for (const mode of results.modes) {
+      if (workload === "pool" && mode === "allMutations") continue;
+      const rounds = samples
+        .filter(
+          (s) =>
+            s.workload === workload &&
+            s.maxParallelism === parallelism &&
+            s.mode === mode,
+        )
+        .map((s) => s.round)
+        .sort((a, b) => a - b);
+      assert.deepEqual(
+        rounds,
+        Array.from({ length: results.repeats + 1 }, (_, i) => i - 1),
+        `Incomplete trials: ${workload}/${parallelism}/${mode}`,
+      );
+    }
+  }
+}
+for (const sample of samples)
+  sample.executions = {
+    scheduledCommits: 0,
+    retries: 0,
+    errors: 0,
+    wrappers: 0,
+    separateCompletions: 0,
+    totalCompletions: 0,
+    scheduledSuccessCallbacks: 0,
+    databaseReadBytes: 0,
+    databaseWriteBytes: 0,
+    lastWorkCommitAt: 0,
+    byFunction: {},
+    timingsByFunction: {},
+  };
+const logsPath = input.replace(/\.json$/, "") + ".logs.jsonl";
+const seen = new Set();
+for await (const entry of readLogs(createReadStream(logsPath), logsPath)) {
+  if (entry.kind !== "Completion") continue;
+  // Stream reconnects can replay entries. Retry attempts share execution IDs,
+  // so include the completion timestamp when deduplicating.
+  const key = `${entry.executionId}/${entry.timestamp}`;
+  if (seen.has(key)) continue;
+  seen.add(key);
+  const at = entry.timestamp * 1000;
+  const sample = samples.find((s) => at >= s.from && at <= s.drainedAt);
+  if (!sample) continue;
+  const component =
+    sample.workload === "pool"
+      ? ["baseline", "filtered"].includes(sample.mode)
+        ? "poolBaseline"
+        : "poolPr"
+      : sample.mode;
+  if (
+    entry.componentPath &&
+    entry.componentPath !== component &&
+    !entry.componentPath.startsWith(`${component}/`)
+  )
+    continue;
+  const x = sample.executions;
+  if (entry.willRetry) x.retries++;
+  if (entry.error && !entry.willRetry) x.errors++;
+  if (
+    entry.identifier === "complete:complete" &&
+    !entry.willRetry &&
+    !entry.error
+  )
+    x.totalCompletions++;
+  if (entry.caller !== "Scheduler" || entry.willRetry || entry.error) continue;
+  x.scheduledCommits++;
+  x.databaseReadBytes += entry.usageStats?.databaseReadBytes ?? 0;
+  x.databaseWriteBytes += entry.usageStats?.databaseWriteBytes ?? 0;
+  const name = `${entry.componentPath ?? "app"}/${entry.identifier}`;
+  x.byFunction[name] = (x.byFunction[name] ?? 0) + 1;
+  const timing = (x.timingsByFunction[name] ??= {
+    executionMs: 0,
+    userExecutionMs: 0,
+  });
+  timing.executionMs += (entry.executionTime ?? 0) * 1000;
+  timing.userExecutionMs += (entry.userExecutionTime ?? 0) * 1000;
+  if (entry.identifier === "worker:runMutationWrapper") x.wrappers++;
+  if (entry.identifier === "complete:complete") x.separateCompletions++;
+  if (
+    ["benchmark:ignoredSuccess", "pool:handlerOnComplete"].includes(
+      entry.identifier,
+    )
+  )
+    x.scheduledSuccessCallbacks++;
+  if (
+    [
+      "worker:runMutationWrapper",
+      "complete:complete",
+      "benchmark:ignoredSuccess",
+      "pool:handlerOnComplete",
+      "pool:onComplete",
+    ].includes(entry.identifier)
+  )
+    x.lastWorkCommitAt = Math.max(x.lastWorkCommitAt, at);
+}
+for (const sample of samples) {
+  // This also detects incomplete/truncated log capture before reporting costs.
+  const expectedWrappers =
+    sample.count *
+    (sample.workload === "pool"
+      ? 1
+      : sample.workload === "inline"
+        ? 1
+        : sample.workload === "action" ||
+            (sample.workload === "query" && sample.mode !== "allMutations")
+          ? sample.steps + 1
+          : 2 * sample.steps + 1);
+  assert.equal(
+    sample.executions.wrappers,
+    expectedWrappers,
+    `Incomplete wrapper logs: ${sample.run}`,
+  );
+  const expectedCompletions =
+    sample.mode === "allMutations"
+      ? 0
+      : sample.mode === "transactional"
+        ? sample.workload === "pool" || sample.workload === "inline"
+          ? 0
+          : sample.count * sample.steps
+        : sample.workload === "query"
+          ? sample.count * (2 * sample.steps + 1)
+          : expectedWrappers;
+  // Count nested query completions too; these are not scheduled executions.
+  if (sample.workload !== "action")
+    assert.equal(
+      sample.executions.totalCompletions,
+      expectedCompletions,
+      `Unexpected completion count: ${sample.run}`,
+    );
+  assert.equal(sample.executions.errors, 0, `Runtime errors: ${sample.run}`);
+  assert.equal(
+    sample.executions.scheduledSuccessCallbacks,
+    expectedSuccessCallbacks(sample),
+    `Unexpected success callback count: ${sample.run}`,
+  );
+  sample.committedExecutionMs =
+    sample.executions.lastWorkCommitAt - sample.admittedAt;
+  sample.committedThroughput =
+    (sample.count * (sample.workload === "pool" ? 1 : sample.steps) * 1000) /
+    sample.committedExecutionMs;
+  sample.endToEndThroughput =
+    (sample.count * (sample.workload === "pool" ? 1 : sample.steps) * 1000) /
+    (sample.admissionMs + sample.committedExecutionMs);
+}
+
+const median = (xs) => {
+  const sorted = xs.toSorted((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+const groups = Map.groupBy(
+  samples.filter((s) => s.round >= 0),
+  (s) => `${s.workload}/${s.maxParallelism}/${s.mode}`,
+);
+results.summary = Array.from(groups, ([key, xs]) => ({
+  key,
+  trials: xs.length,
+  medianThroughput: median(xs.map((s) => s.throughput)),
+  medianCommittedThroughput: median(xs.map((s) => s.committedThroughput)),
+  minCommittedThroughput: Math.min(...xs.map((s) => s.committedThroughput)),
+  maxCommittedThroughput: Math.max(...xs.map((s) => s.committedThroughput)),
+  medianCommittedExecutionMs: median(xs.map((s) => s.committedExecutionMs)),
+  medianEndToEndThroughput: median(xs.map((s) => s.endToEndThroughput)),
+  medianAdmissionMs: median(xs.map((s) => s.admissionMs)),
+  minThroughput: Math.min(...xs.map((s) => s.throughput)),
+  maxThroughput: Math.max(...xs.map((s) => s.throughput)),
+  medianElapsedMs: median(xs.map((s) => s.elapsedMs)),
+  medianScheduledCommits: median(xs.map((s) => s.executions.scheduledCommits)),
+  medianRetries: median(xs.map((s) => s.executions.retries)),
+}));
+results.comparisons = [];
+for (const workload of results.workloads) {
+  for (const parallelism of results.parallelisms) {
+    for (const [control, treatment] of [
+      ["baseline", "filtered"],
+      ["baseline", "allMutations"],
+      ["prFiltered", "allMutations"],
+      ["prFiltered", "transactional"],
+      ["filtered", "transactional"],
+      ["transactional", "allMutations"],
+    ]) {
+      const a = results.summary.find(
+        (s) => s.key === `${workload}/${parallelism}/${control}`,
+      );
+      const b = results.summary.find(
+        (s) => s.key === `${workload}/${parallelism}/${treatment}`,
+      );
+      if (!a || !b) continue;
+      results.comparisons.push({
+        workload,
+        parallelism,
+        control,
+        treatment,
+        committedThroughputChangePct:
+          100 * (b.medianCommittedThroughput / a.medianCommittedThroughput - 1),
+        endToEndThroughputChangePct:
+          100 * (b.medianEndToEndThroughput / a.medianEndToEndThroughput - 1),
+        scheduledExecutionsChangePct:
+          100 * (b.medianScheduledCommits / a.medianScheduledCommits - 1),
+      });
+    }
+  }
+}
+writeFileSync(input, JSON.stringify(results, null, 2) + "\n");
+console.table(
+  results.summary.map((s) => ({
+    scenario: s.key,
+    "jobs or steps / s": s.medianThroughput.toFixed(1),
+    range: `${s.minThroughput.toFixed(1)}–${s.maxThroughput.toFixed(1)}`,
+    "scheduled commits": s.medianScheduledCommits,
+    retries: s.medianRetries,
+    "committed / s": s.medianCommittedThroughput.toFixed(1),
+  })),
+);

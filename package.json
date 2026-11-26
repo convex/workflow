@@ -32,7 +32,10 @@
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
-    "test:e2e": "sh ./example/e2e.sh"
+    "test:e2e": "sh ./example/e2e.sh",
+    "bench:workpool:prepare": "node experiments/workpool/prepare.mjs",
+    "bench:workpool:push": "npm run bench:workpool:prepare && node experiments/workpool/convex.mjs dev --once --typecheck enable && tsc -p experiments/workpool",
+    "bench:workpool": "node experiments/workpool/run.mjs"
   },
   "files": [
     "dist",
@@ -92,7 +95,8 @@
     "prettier": "3.10.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.73.0",
-    "vitest": "5.1.1"
+    "vitest": "5.1.1",
+    "@convex-dev/workpool-transactional": "file:experiments/workpool/vendor/workpool-transactional-rebased-0.5.0.tgz"
   },
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js"
