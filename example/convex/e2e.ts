@@ -15,22 +15,55 @@ import { components, internal } from "./_generated/api";
 
 const workflow = new WorkflowManager(components.workflow);
 
+// Deterministic action orchestration for CI. The interactive weather example
+// still uses Open-Meteo, whose availability must not gate workflow tests.
+export const parallelActionsWorkflow = workflow
+  .define({
+    args: {},
+    returns: v.object({
+      first: v.string(),
+      second: v.string(),
+      incremented: v.number(),
+    }),
+    workpoolOptions: { retryActionsByDefault: true },
+  })
+  .handler(async (step) => {
+    const [first, second] = await Promise.all([
+      step.runAction(
+        internal.test.oldSyntax.echoAction,
+        { msg: "first" },
+        { runAfter: 100 },
+      ),
+      step.runAction(
+        internal.test.oldSyntax.echoAction,
+        { msg: "second" },
+        { retry: true },
+      ),
+    ]);
+    await step.sleep(100, { name: "cooldown" });
+    const incremented = await step.runMutation(
+      internal.test.oldSyntax.incrementMutation,
+      { n: 2 },
+    );
+    return { first, second, incremented };
+  });
+
 // Start various workflows and return their IDs
 export const startAll = mutation({
   args: {},
   handler: async (
     ctx,
   ): Promise<{
-    weather: WorkflowId;
+    parallelActions: WorkflowId;
     catchError: WorkflowId;
     nested: WorkflowId;
     signals: WorkflowId;
     confirmation: WorkflowId;
   }> => {
-    const weather = await workflow.start(
+    const parallelActions = await workflow.start(
       ctx,
-      internal.example.myWorkflow,
-      { location: "San Jose" },
+      internal.e2e.parallelActionsWorkflow,
+      {},
       { startAsync: true },
     );
     const catchError = await workflow.start(
@@ -57,7 +90,7 @@ export const startAll = mutation({
       { prompt: "test prompt" },
       { startAsync: true },
     );
-    return { weather, catchError, nested, signals, confirmation };
+    return { parallelActions, catchError, nested, signals, confirmation };
   },
 });
 
@@ -65,7 +98,7 @@ export const startAll = mutation({
 export const statusAll = query({
   args: {
     ids: v.object({
-      weather: vWorkflowId,
+      parallelActions: vWorkflowId,
       catchError: vWorkflowId,
       nested: vWorkflowId,
       signals: vWorkflowId,

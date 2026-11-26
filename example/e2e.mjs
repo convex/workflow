@@ -8,6 +8,7 @@
  *   node example/e2e.mjs                          # uses CONVEX_URL from .env.local
  *   CONVEX_URL=https://... node example/e2e.mjs   # explicit URL
  */
+import assert from "node:assert/strict";
 import { ConvexClient } from "convex/browser";
 import { api } from "./convex/_generated/api.js";
 import { readFileSync } from "fs";
@@ -137,6 +138,13 @@ try {
     if (status.type === "failed" && status.error) {
       console.log(`       error: ${status.error}`);
     }
+  }
+  if (results.parallelActions.type === "completed") {
+    assert.deepEqual(results.parallelActions.result, {
+      first: "echo:first",
+      second: "echo:second",
+      incremented: 3,
+    });
   }
   await oldSyntaxWorkflow;
   console.log(
