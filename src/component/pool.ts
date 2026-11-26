@@ -7,7 +7,6 @@ import {
   type WorkId,
   type WorkpoolOptions,
 } from "@convex-dev/workpool";
-import { assert } from "convex-helpers";
 import { validate } from "convex-helpers/validators";
 import {
   type FunctionHandle,
@@ -19,10 +18,10 @@ import { components, internal } from "./_generated/api.js";
 import { internalMutation, type MutationCtx } from "./_generated/server.js";
 import { logLevel } from "./logging.js";
 import { getDefaultLogger } from "./utils.js";
-import { completeHandler } from "./workflow.js";
+import { completeHandler, endWorkflow } from "./workflow.js";
+import { finishStep } from "./finish.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { vWorkflowId, type WorkflowId } from "../types.js";
-import { checkForOversizedResult } from "./oversizedValues.js";
 
 export const workpoolOptions = v.object({
   logLevel: v.optional(logLevel),
@@ -123,54 +122,20 @@ async function onCompleteHandler(
     const error =
       `Invalid onComplete context for ${args.workId ? `workId ${args.workId}` : `nested workflowId ${args.workflowId}`}` +
       JSON.stringify(args.context);
-    await ctx.db.patch("workflows", workflowId, {
-      runResult: {
-        kind: "failed",
-        error,
-      },
-    });
-    return;
-  }
-  const { generationNumber } = args.context;
-  const workflow = await ctx.db.get("workflows", workflowId);
-  assert(workflow, `Workflow not found: ${workflowId}`);
-  if (workflow.generationNumber !== generationNumber) {
-    console.error(
-      `Workflow: ${workflowId} already has generation number ${workflow.generationNumber} when completing ${stepId}. Expected ${generationNumber}`,
-    );
-    return;
-  }
-  if (!journalEntry.step.inProgress) {
-    console.error(
-      `Step finished but journal entry not in progress: ${stepId} status: ${journalEntry.step.runResult?.kind ?? "pending"}`,
-    );
-    return;
-  }
-  journalEntry.step.inProgress = false;
-  journalEntry.step.completedAt = Date.now();
-  const runResult = checkForOversizedResult(args.result);
-  journalEntry.step.runResult = runResult;
-  await ctx.db.replace("steps", journalEntry._id, journalEntry);
-  console.debug(`Completed execution of ${stepId}`, journalEntry);
-
-  console.event("stepCompleted", {
-    workflowId,
-    workflowName: workflow.name,
-    status: journalEntry.step.runResult.kind,
-    stepName: journalEntry.step.name,
-    stepNumber: journalEntry.stepNumber,
-    durationMs: journalEntry.step.completedAt - journalEntry.step.startedAt,
-  });
-  if (workflow.runResult !== undefined) {
-    if (workflow.runResult.kind !== "canceled") {
-      console.error(
-        `Workflow: ${workflowId} already ${workflow.runResult.kind} when completing ${stepId} with status ${journalEntry.step.runResult.kind}`,
-      );
+    const workflow = await ctx.db.get("workflows", workflowId);
+    if (workflow && workflow.runResult === undefined) {
+      await endWorkflow(ctx, workflow, { kind: "failed", error });
     }
     return;
   }
-  const workpool = await getWorkpool(ctx, args.context.workpoolOptions);
-  await enqueueWorkflow(ctx, workflow, workpool);
+  // No generation check: a step from an earlier generation can't still be
+  // open, because endWorkflow closes every open step whenever a workflow
+  // ends, and restart only runs on ended workflows. finishStep ignores a
+  // step that already ended.
+  await finishStep(ctx, journalEntry, args.result, {
+    replay: true,
+    workpoolOptions: args.context.workpoolOptions,
+  });
 }
 
 export async function enqueueWorkflow(

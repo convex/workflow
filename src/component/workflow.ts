@@ -1,4 +1,5 @@
-import { vResultValidator } from "@convex-dev/workpool";
+import { vResultValidator, type RunResult } from "@convex-dev/workpool";
+import { finishStep } from "./finish.js";
 import { assert } from "convex-helpers";
 import {
   paginationOptsValidator,
@@ -374,7 +375,9 @@ export const complete = mutation({
   handler: completeHandler,
 });
 
-// When the overall workflow completes (successfully or not).
+// When the handler finishes, or `cancel` or a failed handler run ends the
+// workflow. Checks the generation, so a handler run from before a restart
+// can't end the restarted workflow.
 export async function completeHandler(
   ctx: MutationCtx,
   args: Infer<typeof completeArgs>,
@@ -384,47 +387,63 @@ export async function completeHandler(
     args.workflowId,
     args.generationNumber,
   );
-  const console = await getDefaultLogger(ctx);
   if (workflow.runResult) {
     throw new Error(`Workflow not running: ${workflow._id}`);
   }
-  workflow.runResult = args.runResult;
+  await endWorkflow(ctx, workflow, args.runResult);
+}
+
+/**
+ * The one place a workflow ends, whatever the result. Every step still in
+ * progress is closed with a canceled result (finishStep, which also closes
+ * its event), and its work is stopped: queued functions and sleeps are
+ * canceled in the workpool, and child workflows are canceled. This happens
+ * on success and failure too, not only on cancel: a branch still running
+ * beside a failed `Promise.all`, or a step the handler never awaited, is
+ * stopped when its workflow ends. Then `onComplete` runs.
+ */
+export async function endWorkflow(
+  ctx: MutationCtx,
+  workflow: Doc<"workflows">,
+  runResult: RunResult,
+) {
+  const console = await getDefaultLogger(ctx);
+  workflow.runResult = runResult;
   console.event("completed", {
     workflowId: workflow._id,
     name: workflow.name,
-    status: workflow.runResult.kind,
+    status: runResult.kind,
     overallDurationMs: Date.now() - workflow._creationTime,
   });
-  if (workflow.runResult.kind === "canceled") {
-    // We bump it so no in-flight steps succeed / we don't race to complete.
-    workflow.generationNumber += 1;
-    // TODO: can we cancel these asynchronously if there's more than one?
-    const inProgress = await ctx.db
-      .query("steps")
-      .withIndex("inProgress", (q) =>
-        q.eq("step.inProgress", true).eq("workflowId", args.workflowId),
-      )
-      .collect();
-    if (inProgress.length > 0) {
-      const workpool = await getWorkpool(ctx, {});
-      for (const { step } of inProgress) {
-        if (!step.kind || step.kind === "function" || step.kind === "sleep") {
-          if (step.workId) {
-            await workpool.cancel(ctx, step.workId);
-          }
-        } else if (step.kind === "workflow") {
-          if (step.workflowId) {
-            await ctx.runMutation(api.workflow.cancel, {
-              workflowId: step.workflowId,
-            });
-          }
+  // Written first, so the finishStep calls below and any child's onComplete
+  // see a finished workflow and don't enqueue a replay.
+  await ctx.db.replace("workflows", workflow._id, workflow);
+  // TODO: can we cancel these asynchronously if there's more than one?
+  const inProgress = await ctx.db
+    .query("steps")
+    .withIndex("inProgress", (q) =>
+      q.eq("step.inProgress", true).eq("workflowId", workflow._id),
+    )
+    .collect();
+  if (inProgress.length > 0) {
+    const workpool = await getWorkpool(ctx, {});
+    for (const entry of inProgress) {
+      const { step } = entry;
+      // Closed before its work is stopped, so the canceled job's or child's
+      // own completion finds the step closed and changes nothing.
+      await finishStep(ctx, entry, { kind: "canceled" }, { replay: false });
+      if (!step.kind || step.kind === "function" || step.kind === "sleep") {
+        if (step.workId) {
+          await workpool.cancel(ctx, step.workId);
+        }
+      } else if (step.kind === "workflow" && step.workflowId) {
+        const child = await ctx.db.get("workflows", step.workflowId);
+        if (child && child.runResult === undefined) {
+          await endWorkflow(ctx, child, { kind: "canceled" });
         }
       }
     }
-    console.debug(`Canceled workflow:`, workflow);
   }
-  // Write the workflow so the onComplete can observe the updated status.
-  await ctx.db.replace("workflows", workflow._id, workflow);
   if (workflow.onComplete) {
     try {
       await ctx.runMutation(
@@ -442,7 +461,9 @@ export async function completeHandler(
       const message = formatErrorWithStack(error);
       console.error("Error calling onComplete", message);
       await ctx.db.insert("onCompleteFailures", {
-        ...args,
+        workflowId: workflow._id,
+        generationNumber: workflow.generationNumber,
+        runResult,
         error: message,
       });
     }
@@ -498,6 +519,34 @@ export const cleanupContinue = internalMutation({
 
 const CLEANUP_BATCH_SIZE = 256;
 
+export const cleanupEventsContinue = internalMutation({
+  args: { workflowId: v.id("workflows") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await cleanupEvents(ctx, args.workflowId);
+    return null;
+  },
+});
+
+// Deletes every event of the workflow, including ones sent but never waited
+// for, which no step refers to. Runs after the last batch of steps is gone,
+// so a later step batch can't find its event already deleted. Events can be
+// large (a sent event holds its payload), so it checks the budget after each
+// one rather than reading a fixed batch.
+async function cleanupEvents(ctx: MutationCtx, workflowId: Id<"workflows">) {
+  for await (const event of ctx.db
+    .query("events")
+    .withIndex("workflowId_state", (q) => q.eq("workflowId", workflowId))) {
+    await ctx.db.delete("events", event._id);
+    if (await transactionBudgetMostlyConsumed(ctx)) {
+      await ctx.scheduler.runAfter(0, internal.workflow.cleanupEventsContinue, {
+        workflowId,
+      });
+      return;
+    }
+  }
+}
+
 async function transactionBudgetMostlyConsumed(
   ctx: MutationCtx,
 ): Promise<boolean> {
@@ -541,10 +590,16 @@ async function cleanupStepsFrom(
         q.eq("workflowId", workflowId).gte("stepNumber", fromStepNumber),
       )
       .take(CLEANUP_BATCH_SIZE);
-    if (batch.length === 0) return;
+    if (batch.length === 0) {
+      await cleanupEvents(ctx, workflowId);
+      return;
+    }
     await deleteSteps(ctx, batch);
     fromStepNumber = batch[batch.length - 1].stepNumber + 1;
-    if (batch.length < CLEANUP_BATCH_SIZE) return;
+    if (batch.length < CLEANUP_BATCH_SIZE) {
+      await cleanupEvents(ctx, workflowId);
+      return;
+    }
     if (await transactionBudgetMostlyConsumed(ctx)) {
       await ctx.scheduler.runAfter(0, internal.workflow.cleanupContinue, {
         workflowId,
@@ -561,7 +616,11 @@ async function deleteSteps(ctx: MutationCtx, batch: Doc<"steps">[]) {
     batch.map(async (entry) => {
       await ctx.db.delete("steps", entry._id);
       if (entry.step.kind === "event" && entry.step.eventId) {
-        await ctx.db.delete("events", entry.step.eventId);
+        // Already gone if another workflow's cleanup deleted it (a step can
+        // wait on another workflow's event by ID).
+        if (await ctx.db.get("events", entry.step.eventId)) {
+          await ctx.db.delete("events", entry.step.eventId);
+        }
       } else if (entry.step.kind === "workflow" && entry.step.workflowId) {
         nestedWorkflowIds.push(entry.step.workflowId);
       }

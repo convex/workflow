@@ -81,4 +81,21 @@ describe("fan-in of parallel steps", () => {
       expect(after).toEqual(before);
     },
   );
+
+  // On the replay after alwaysFails gives up, the handler finishes while the
+  // other branch is asking for its wait step. Before StepExecutor.stop, the
+  // journal.startSteps call for that step was still running when the handler
+  // mutation returned. It threw "Workflow not running" and left a workpool job
+  // "running" forever, so finishAllScheduledFunctions never finished.
+  test("a branch still asking for a step when the handler fails", async () => {
+    const t = initConvexTest();
+    const workflowId = await t.run((ctx) =>
+      workflow.start(ctx, internal.test.fanIn.failBesideEvent, {}),
+    );
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const status = await t.run((ctx) =>
+      getStatus(ctx, components.workflow, workflowId),
+    );
+    expect(status.type).toBe("failed");
+  });
 });

@@ -15,8 +15,8 @@ import { internal } from "./_generated/api.js";
 import { getDefaultLogger } from "./utils.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
 import { assert } from "convex-helpers";
-import { enqueueWorkflow, getWorkpool, workpoolOptions } from "./pool.js";
-import { checkForOversizedResult } from "./oversizedValues.js";
+import { workpoolOptions } from "./pool.js";
+import { closeStep, finishStep } from "./finish.js";
 
 export async function awaitEvent(
   ctx: MutationCtx,
@@ -58,6 +58,11 @@ export async function awaitEvent(
         `Event already timed out: ${event._id} (${entry.step.name}) in workflow ${entry.workflowId} step ${entry.stepNumber} (${entry._id})`,
       );
     }
+    case "canceled": {
+      throw new Error(
+        `Event's wait already ended: ${event._id} (${entry.step.name}) in workflow ${entry.workflowId} step ${entry.stepNumber} (${entry._id})`,
+      );
+    }
   }
 
   switch (event.state.kind) {
@@ -72,11 +77,12 @@ export async function awaitEvent(
           stepId: entry._id,
         },
       });
-      entry.step.runResult = checkForOversizedResult(
+      // Born complete: the step was never in progress, so it is closed here
+      // rather than through finishStep, and the handler carries on in this run.
+      closeStep(
+        entry,
         timed ? timedEventResult(event.state.result) : event.state.result,
       );
-      entry.step.inProgress = false;
-      entry.step.completedAt = Date.now();
       break;
     }
     case "created": {
@@ -179,7 +185,9 @@ async function findEvent(
 function isEndedTimedWait(event: Doc<"events">): boolean {
   return (
     event.timeout !== undefined &&
-    (event.state.kind === "consumed" || event.state.kind === "timedOut")
+    (event.state.kind === "consumed" ||
+      event.state.kind === "timedOut" ||
+      event.state.kind === "canceled")
   );
 }
 
@@ -193,114 +201,102 @@ export const send = mutation({
   },
   returns: v.id("events"),
   handler: async (ctx, args) => {
-    let event = await findEvent(
-      ctx,
-      args.workflowId,
-      { eventId: args.eventId, name: args.name },
-      ["waiting", "created"],
-    );
-    if (!event) {
-      // Sending by name with nothing waiting. If the most recent event with
-      // this name was a timed wait that already ended, this send is late:
-      // drop it rather than store it for some later wait.
-      const latest = await ctx.db
-        .query("events")
-        .withIndex("workflowId_name", (q) =>
-          q.eq("workflowId", args.workflowId!).eq("name", args.name!),
-        )
-        .order("desc")
-        .first();
-      if (latest && isEndedTimedWait(latest)) {
-        return latest._id;
+    // Normally runs once. It runs again only after finding a "waiting" event
+    // whose step already ended (left by a workflow that ended before
+    // endWorkflow closed events): that event is marked canceled and a send
+    // by name looks for another one.
+    while (true) {
+      let event = await findEvent(
+        ctx,
+        args.workflowId,
+        { eventId: args.eventId, name: args.name },
+        ["waiting", "created"],
+      );
+      if (!event) {
+        // Sending by name with nothing waiting. If the most recent event with
+        // this name was a timed wait that already ended, this send is late:
+        // drop it rather than store it for some later wait.
+        const latest = await ctx.db
+          .query("events")
+          .withIndex("workflowId_name", (q) =>
+            q.eq("workflowId", args.workflowId!).eq("name", args.name!),
+          )
+          .order("desc")
+          .first();
+        if (latest && isEndedTimedWait(latest)) {
+          return latest._id;
+        }
+        event = await insertEvent(ctx, args.workflowId!, args.name!);
       }
-      event = await insertEvent(ctx, args.workflowId!, args.name!);
-    }
-    const { workflowId } = event;
-    const name = args.name ?? event.name;
-    if (isEndedTimedWait(event)) {
-      // Late or duplicate send to a timed wait that already ended.
-      return event._id;
-    }
-    switch (event.state.kind) {
-      case "sent": {
-        throw new Error(
-          `Event already sent: ${event._id} (${name}) in workflow ${workflowId}`,
-        );
-      }
-      case "consumed": {
-        throw new Error(
-          `Event already consumed: ${event._id} (${name}) in workflow ${workflowId}`,
-        );
-      }
-      case "timedOut": {
-        // Only timed waits time out, so isEndedTimedWait handled this above.
+      const { workflowId } = event;
+      const name = args.name ?? event.name;
+      if (isEndedTimedWait(event)) {
+        // Late or duplicate send to a timed wait that already ended.
         return event._id;
       }
-      case "created": {
-        await ctx.db.patch("events", event._id, {
-          state: { kind: "sent", result: args.result, sentAt: Date.now() },
-        });
-        break;
-      }
-      case "waiting": {
-        const step = await ctx.db.get("steps", event.state.stepId);
-        assert(
-          step,
-          `Entry ${event.state.stepId} not found when sending event ${event._id} (${name}) in workflow ${workflowId}`,
-        );
-        assert(step.step.kind === "event", "Step is not an event");
-        const timed = event.timeout !== undefined;
-        if (timed) {
-          // The wait ends with its workflow. A send after the workflow
-          // finished or was canceled is dropped.
-          const workflow = await ctx.db.get("workflows", workflowId);
-          if (!workflow || workflow.runResult !== undefined) {
+      switch (event.state.kind) {
+        case "sent": {
+          throw new Error(
+            `Event already sent: ${event._id} (${name}) in workflow ${workflowId}`,
+          );
+        }
+        case "consumed": {
+          throw new Error(
+            `Event already consumed: ${event._id} (${name}) in workflow ${workflowId}`,
+          );
+        }
+        case "timedOut":
+        case "canceled": {
+          // Its wait already ended, so there is nothing to deliver to.
+          return event._id;
+        }
+        case "created": {
+          await ctx.db.patch("events", event._id, {
+            state: { kind: "sent", result: args.result, sentAt: Date.now() },
+          });
+          return event._id;
+        }
+        case "waiting": {
+          const step = await ctx.db.get("steps", event.state.stepId);
+          const timed = event.timeout !== undefined;
+          const delivered =
+            step &&
+            (await finishStep(
+              ctx,
+              step,
+              timed ? timedEventResult(args.result) : args.result,
+              {
+                event: {
+                  kind: "consumed",
+                  stepId: step._id,
+                  waitingAt: event.state.waitingAt,
+                  sentAt: Date.now(),
+                  consumedAt: Date.now(),
+                },
+                replay: true,
+                workpoolOptions: args.workpoolOptions,
+              },
+            ));
+          if (delivered) {
             return event._id;
           }
+          await ctx.db.patch("events", event._id, {
+            state: {
+              kind: "canceled",
+              waitingAt: event.state.waitingAt,
+              canceledAt: Date.now(),
+              stepId: event.state.stepId,
+            },
+          });
+          if (args.eventId) {
+            return event._id;
+          }
+          continue;
         }
-        step.step.eventId = event._id;
-        step.step.runResult = checkForOversizedResult(
-          timed ? timedEventResult(args.result) : args.result,
-        );
-        step.step.inProgress = false;
-        step.step.completedAt = Date.now();
-        await ctx.db.replace("steps", step._id, step);
-        await ctx.db.patch("events", event._id, {
-          state: {
-            kind: "consumed",
-            stepId: step._id,
-            waitingAt: event.state.waitingAt,
-            sentAt: Date.now(),
-            consumedAt: Date.now(),
-          },
-        });
-        await resumeIfNoWaitingEvents(ctx, workflowId, args.workpoolOptions);
-        break;
       }
     }
-    return event._id;
   },
 });
-
-async function resumeIfNoWaitingEvents(
-  ctx: MutationCtx,
-  workflowId: Id<"workflows">,
-  options: WorkpoolOptions | undefined,
-) {
-  const anyMoreEvents = await ctx.db
-    .query("events")
-    .withIndex("workflowId_state", (q) =>
-      q.eq("workflowId", workflowId).eq("state.kind", "waiting"),
-    )
-    .order("desc")
-    .first();
-  if (!anyMoreEvents) {
-    const workflow = await ctx.db.get("workflows", workflowId);
-    assert(workflow, `Workflow ${workflowId} not found`);
-    const workpool = await getWorkpool(ctx, options);
-    await enqueueWorkflow(ctx, workflow, workpool);
-  }
-}
 
 /**
  * Scheduled when a timed wait starts. Ends the wait with `{ kind: "timeout" }`
@@ -323,44 +319,37 @@ export const timeoutWait = internalMutation({
     ) {
       return null;
     }
-    await ctx.db.patch("events", event._id, {
-      state: {
-        kind: "timedOut",
-        waitingAt: event.state.waitingAt,
-        timedOutAt: Date.now(),
-        stepId: args.stepId,
-      },
-    });
-    const workflow = await ctx.db.get("workflows", event.workflowId);
-    if (!workflow) {
-      return null;
-    }
+    const timedOut: Doc<"events">["state"] = {
+      kind: "timedOut",
+      waitingAt: event.state.waitingAt,
+      timedOutAt: Date.now(),
+      stepId: args.stepId,
+    };
     const step = await ctx.db.get("steps", args.stepId);
-    if (!step || !step.step.inProgress) {
+    const ended =
+      step &&
+      (await finishStep(
+        ctx,
+        step,
+        { kind: "success", returnValue: { kind: "timeout" } },
+        {
+          event: timedOut,
+          replay: true,
+          workpoolOptions: args.workpoolOptions,
+        },
+      ));
+    if (!ended) {
+      // The step is gone or already ended; just stop the event waiting.
+      await ctx.db.patch("events", event._id, { state: timedOut });
       return null;
     }
     const console = await getDefaultLogger(ctx);
-    step.step.runResult = {
-      kind: "success",
-      returnValue: { kind: "timeout" },
-    };
-    step.step.inProgress = false;
-    step.step.completedAt = Date.now();
-    await ctx.db.replace("steps", step._id, step);
     console.event("eventTimedOut", {
-      workflowId: workflow._id,
-      workflowName: workflow.name,
+      workflowId: event.workflowId,
       eventName: event.name,
       stepNumber: step.stepNumber,
-      durationMs: step.step.completedAt - step.step.startedAt,
+      durationMs: step.step.completedAt! - step.step.startedAt,
     });
-    // The step ends even if the workflow already finished: a replay that
-    // fails the workflow can still start this wait (a Promise.all branch
-    // beside the failed one), and nothing else would mark it done. Only a
-    // running workflow needs to replay.
-    if (workflow.runResult === undefined) {
-      await resumeIfNoWaitingEvents(ctx, workflow._id, args.workpoolOptions);
-    }
     return null;
   },
 });

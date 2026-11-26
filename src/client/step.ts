@@ -18,6 +18,7 @@ import type {
   WorkflowComponent,
 } from "./types.js";
 import { MAX_JOURNAL_SIZE, failedResult } from "../shared.js";
+import { checkForOversizedResult } from "../component/oversizedValues.js";
 import type { EventId, SchedulerOptions } from "../types.js";
 import { pick } from "convex-helpers";
 
@@ -80,6 +81,23 @@ export class StepExecutor {
       throw new Error(journalSizeError(this.journalEntrySize, this.workflowId));
     }
   }
+  // The `startSteps` call `run` is waiting on, if any. `stop` waits for it.
+  private inFlight: Promise<unknown> | undefined;
+  private stopped = false;
+
+  /**
+   * Called when the handler finishes first in the `Promise.race` in
+   * workflowMutation.ts. A branch still running in the handler (one beside a
+   * failed `Promise.all` branch) may have asked for a step, and `run` may be
+   * in the middle of `journal.startSteps` for it. This makes `run` start no
+   * more steps and waits for that call, so it doesn't run after
+   * `workflow.complete` or outlive the mutation.
+   */
+  async stop(): Promise<void> {
+    this.stopped = true;
+    await this.inFlight?.catch(() => undefined);
+  }
+
   async run(): Promise<WorkerResult> {
     while (true) {
       const message = await this.receiver.get();
@@ -96,7 +114,13 @@ export class StepExecutor {
         const message = await this.receiver.get();
         messages.push(message);
       }
-      const entries = await this.startSteps(messages);
+      if (this.stopped) {
+        return { type: "executorBlocked" };
+      }
+      const started = this.startSteps(messages);
+      this.inFlight = started;
+      const entries = await started;
+      this.inFlight = undefined;
       if (entries.every((entry) => entry.step.runResult)) {
         for (let i = 0; i < entries.length; i++) {
           const entry = entries[i];
@@ -188,7 +212,13 @@ export class StepExecutor {
                     target.args,
                     { transactionLimits: message.transactionLimits },
                   );
-            runResult = { kind: "success", returnValue: result ?? null };
+            // Same size limit as a queued step's result (pool.ts onComplete),
+            // so an oversized inline result fails the step instead of making
+            // journal.startSteps throw "Value is too large" for the whole run.
+            runResult = checkForOversizedResult({
+              kind: "success",
+              returnValue: result ?? null,
+            });
           } catch (error: unknown) {
             runResult = failedResult(error);
           }

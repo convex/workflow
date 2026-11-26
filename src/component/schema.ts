@@ -120,6 +120,14 @@ export const event = {
       timedOutAt: v.number(),
       stepId: v.id("steps"),
     }),
+    // The wait's step ended some other way (its workflow ended), so this
+    // event serves no wait. Set by finishStep in finish.ts.
+    v.object({
+      kind: v.literal("canceled"),
+      waitingAt: v.number(),
+      canceledAt: v.number(),
+      stepId: v.id("steps"),
+    }),
   ),
 };
 

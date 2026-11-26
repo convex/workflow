@@ -292,6 +292,7 @@ export function workflowMutation<
         const result = await Promise.race([handlerWorker(), executorWorker()]);
         switch (result.type) {
           case "handlerDone": {
+            await executor.stop();
             await ctx.runMutation(component.workflow.complete, {
               workflowId,
               generationNumber,
