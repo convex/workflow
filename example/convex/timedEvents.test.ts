@@ -250,33 +250,9 @@ describe("awaitEvent with timeout", () => {
     expect(done.error).toContain("declined");
   });
 
-  // The workflow ends (here by cancel; also when a failing replay starts the
-  // wait beside a failed Promise.all branch) while the timed wait is open.
-  // When the timeout fires, timeoutWait must still mark the step done. It
-  // used to return as soon as it saw the workflow had finished, leaving the
-  // step in progress for good, and a later restart that kept it would block.
-  test("a timed wait in a finished workflow still ends at its timeout", async () => {
-    const t = initConvexTest();
-    const workflowId = await t.run((ctx) =>
-      workflow.start(
-        ctx,
-        internal.timedEvents.waitByName,
-        { timeout: 5000 },
-        { startAsync: true },
-      ),
-    );
-    await advance(t, 500);
-    await t.run((ctx) => cancel(ctx, components.workflow, workflowId));
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
-    const steps = await t.run((ctx) =>
-      listSteps(ctx, components.workflow, workflowId, {
-        paginationOpts: { cursor: null, numItems: 10 },
-      }),
-    );
-    const wait = steps.page.find((s) => s.kind === "event");
-    expect(wait?.completedAt).toBeDefined();
-  });
-
+  // Cancel closes the wait's step as canceled and its event too, in the
+  // cancel's own transaction (endWorkflow). Sends after that, and the
+  // timeout firing later, change neither, and nothing is stored.
   test("canceled while waiting: later send and timeout are no-ops", async () => {
     const t = initConvexTest();
     const workflowId = await t.run((ctx) =>
@@ -291,13 +267,38 @@ describe("awaitEvent with timeout", () => {
     expect((await status(t, workflowId)).type).toBe("inProgress");
 
     await t.run((ctx) => cancel(ctx, components.workflow, workflowId));
-    await sendByName(t, workflowId, "too late");
+    const waitStep = async () =>
+      (
+        await t.run((ctx) =>
+          listSteps(ctx, components.workflow, workflowId, {
+            paginationOpts: { cursor: null, numItems: 10 },
+          }),
+        )
+      ).page.find((s) => s.kind === "event")!;
+    const events = () =>
+      (
+        t as unknown as {
+          runInComponent: (
+            path: string,
+            fn: (
+              ctx: any,
+            ) => Promise<{ _id: string; state: { kind: string } }[]>,
+          ) => Promise<{ _id: string; state: { kind: string } }[]>;
+        }
+      ).runInComponent("workflow", (ctx) => ctx.db.query("events").collect());
+    const closed = await waitStep();
+    expect(closed.runResult).toEqual({ kind: "canceled" });
+    expect(closed.completedAt).toBeDefined();
+    expect((await events()).map((e) => e.state.kind)).toEqual(["canceled"]);
+    const eventId = (await events())[0]._id;
+
+    expect(await sendByName(t, workflowId, "too late")).toBe(eventId);
     // Fire the timeout and anything else pending.
     await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await sendByName(t, workflowId, "later still")).toBe(eventId);
     expect((await status(t, workflowId)).type).toBe("canceled");
-    // Another send after the timeout fired is still a no-op.
-    await sendByName(t, workflowId, "later still");
-    expect((await status(t, workflowId)).type).toBe("canceled");
+    expect(await waitStep()).toEqual(closed);
+    expect((await events()).map((e) => e.state.kind)).toEqual(["canceled"]);
   });
 });
 

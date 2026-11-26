@@ -20,6 +20,7 @@ import type * as test_contextRoundtrip from "../test/contextRoundtrip.js";
 import type * as test_convexErrors from "../test/convexErrors.js";
 import type * as test_fanIn from "../test/fanIn.js";
 import type * as test_inline from "../test/inline.js";
+import type * as test_lifecycle from "../test/lifecycle.js";
 import type * as test_oldSyntax from "../test/oldSyntax.js";
 import type * as timedEvents from "../timedEvents.js";
 import type * as transcription from "../transcription.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "test/convexErrors": typeof test_convexErrors;
   "test/fanIn": typeof test_fanIn;
   "test/inline": typeof test_inline;
+  "test/lifecycle": typeof test_lifecycle;
   "test/oldSyntax": typeof test_oldSyntax;
   timedEvents: typeof timedEvents;
   transcription: typeof transcription;

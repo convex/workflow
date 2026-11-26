@@ -110,8 +110,12 @@ export const startSteps = mutation({
     const workpool = await getWorkpool(ctx, args.workpoolOptions);
     const onComplete = internal.pool.onComplete;
 
-    const entries = await Promise.all(
-      args.steps.map(async (stepArgs, index) => {
+    // One at a time, not Promise.all: two waits on the same name in one batch
+    // would otherwise both read the same stored "sent" event before either
+    // claims it, and both receive it.
+    const entries: JournalEntry[] = [];
+    for (const [index, stepArgs] of args.steps.entries()) {
+      const startOne = async (): Promise<JournalEntry> => {
         const { retry, schedulerOptions } = stepArgs;
         const stepNumber = stepNumberBase + index;
         const stepId = await ctx.db.insert("steps", {
@@ -228,8 +232,9 @@ export const startSteps = mutation({
         await ctx.db.replace("steps", entry._id, entry);
 
         return entry;
-      }),
-    );
+      };
+      entries.push(await startOne());
+    }
     return entries;
   },
 });
