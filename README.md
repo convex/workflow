@@ -751,6 +751,39 @@ See [`example/convex/passingSignals.ts`](./example/convex/passingSignals.ts) for
 a complete example of creating events, passing their IDs around, and sending
 signals.
 
+#### Waiting with a timeout
+
+Pass `timeout` (in milliseconds) to stop waiting after a set time. With a
+timeout, `awaitEvent` resolves to `{ kind: "event", value }` or
+`{ kind: "timeout" }` instead of the bare value, and it does not throw on
+timeout. An error sent with the event still throws.
+
+```ts
+const answer = await step.awaitEvent({
+  name: "callAnswered",
+  validator: v.object({ by: v.string() }),
+  timeout: 30_000,
+});
+if (answer.kind === "timeout") {
+  return "no answer";
+}
+return `answered by ${answer.value.by}`;
+```
+
+A timed wait serves one event. Once it ends (the event arrived, the timeout
+fired, or the workflow finished or was canceled), a later `sendEvent` for it
+does nothing: it doesn't throw, and it isn't stored for a later wait with the
+same name. This also applies to sends by name while the most recent wait with
+that name was a timed wait that has ended.
+
+An event sent by name before a timed wait starts is stored as usual, and the
+timed wait receives it right away. So a step that sends a request and a next
+step that waits for the reply with a timeout won't miss a reply that arrives in
+between. A late send for a timed wait that already ended is never stored, so it
+can't satisfy a later wait. Without `timeout`, waits behave as described above.
+
+See [`example/convex/timedEvents.ts`](./example/convex/timedEvents.ts).
+
 ### Running nested workflows with `step.runWorkflow`
 
 Use `step.runWorkflow` to run another workflow as a single step in the current

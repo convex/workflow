@@ -51,6 +51,8 @@ export {
   type WorkflowStep,
 } from "../types.js";
 export type {
+  AwaitEventArgs,
+  AwaitEventResult,
   RunOptions,
   StepDefaults,
   WorkflowCtx,

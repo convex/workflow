@@ -21,6 +21,7 @@ import type * as test_convexErrors from "../test/convexErrors.js";
 import type * as test_fanIn from "../test/fanIn.js";
 import type * as test_inline from "../test/inline.js";
 import type * as test_oldSyntax from "../test/oldSyntax.js";
+import type * as timedEvents from "../timedEvents.js";
 import type * as transcription from "../transcription.js";
 import type * as userConfirmation from "../userConfirmation.js";
 
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "test/fanIn": typeof test_fanIn;
   "test/inline": typeof test_inline;
   "test/oldSyntax": typeof test_oldSyntax;
+  timedEvents: typeof timedEvents;
   transcription: typeof transcription;
   userConfirmation: typeof userConfirmation;
 }>;

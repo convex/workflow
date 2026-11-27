@@ -124,3 +124,29 @@ test("the return type survives statically generated function types", () => {
     Awaited<ReturnType<typeof _ctx.runWorkflow<CodegenRef<null>>>>
   >().toEqualTypeOf<null>();
 });
+
+declare const _stringValidator: VString<string>;
+
+// `_ctx` only exists at the type level, so these checks never run, but
+// `npm run typecheck` (tsc) still checks them.
+function _awaitEventTypes() {
+  expectTypeOf(
+    _ctx.awaitEvent({ name: "answer", validator: _stringValidator }),
+  ).resolves.toEqualTypeOf<string>();
+  expectTypeOf(
+    _ctx.awaitEvent({ name: "answer" }),
+  ).resolves.toEqualTypeOf<unknown>();
+  expectTypeOf(
+    _ctx.awaitEvent({
+      name: "answer",
+      validator: _stringValidator,
+      timeout: 1000,
+    }),
+  ).resolves.toEqualTypeOf<
+    { kind: "event"; value: string } | { kind: "timeout" }
+  >();
+}
+
+test("awaitEvent types depend on timeout", () => {
+  expectTypeOf(_awaitEventTypes).toBeFunction();
+});

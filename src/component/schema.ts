@@ -59,7 +59,11 @@ export const step = v.union(
     kind: v.literal("event"),
     ...stepCommonFields,
     eventId: v.optional(v.id("events")),
-    args: v.object({ eventId: v.optional(v.id("events")) }),
+    args: v.object({
+      eventId: v.optional(v.id("events")),
+      // Set when the wait was started with a timeout (milliseconds).
+      timeout: v.optional(v.number()),
+    }),
   }),
   v.object({
     kind: v.literal("sleep"),
@@ -85,6 +89,10 @@ export type JournalEntry = Infer<typeof journalDocument>;
 export const event = {
   workflowId: v.id("workflows"),
   name: v.string(),
+  // Set when a wait with a timeout (milliseconds) started on this event. Such
+  // an event serves exactly one wait: once that wait ends, later sends are
+  // dropped instead of being stored or throwing.
+  timeout: v.optional(v.number()),
   state: v.union(
     v.object({
       kind: v.literal("created"),
@@ -106,6 +114,12 @@ export const event = {
       consumedAt: v.number(),
       stepId: v.id("steps"),
     }),
+    v.object({
+      kind: v.literal("timedOut"),
+      waitingAt: v.number(),
+      timedOutAt: v.number(),
+      stepId: v.id("steps"),
+    }),
   ),
 };
 
@@ -118,10 +132,9 @@ export default defineSchema({
   steps: defineTable(journalObject)
     .index("workflow", ["workflowId", "stepNumber"])
     .index("inProgress", ["step.inProgress", "workflowId"]),
-  events: defineTable(event).index("workflowId_state", [
-    "workflowId",
-    "state.kind",
-  ]),
+  events: defineTable(event)
+    .index("workflowId_state", ["workflowId", "state.kind"])
+    .index("workflowId_name", ["workflowId", "name"]),
   onCompleteFailures: defineTable(
     v.union(
       v.object({
