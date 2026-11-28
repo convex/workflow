@@ -27,8 +27,30 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       create: FunctionReference<
         "mutation",
         "internal",
-        { name: string; workflowId: string },
+        { name: string; workflowId: string; timeoutMs?: number },
         string,
+        Name
+      >;
+      createWebhook: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          name: string;
+          workflowId: string;
+          settings?: {
+            body?: "include" | "discard";
+            headers?: "include" | "discard";
+          };
+          timeoutMs?: number;
+        },
+        { eventId: string; uuid: string; url: string },
+        Name
+      >;
+      getWebhookPayloadUrl: FunctionReference<
+        "query",
+        "internal",
+        { eventId: string; field: "body" | "headers" },
+        string | null,
         Name
       >;
       send: FunctionReference<

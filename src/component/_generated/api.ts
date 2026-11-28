@@ -9,6 +9,7 @@
  */
 
 import type * as event from "../event.js";
+import type * as http from "../http.js";
 import type * as journal from "../journal.js";
 import type * as logging from "../logging.js";
 import type * as model from "../model.js";
@@ -26,6 +27,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
   event: typeof event;
+  http: typeof http;
   journal: typeof journal;
   logging: typeof logging;
   model: typeof model;
