@@ -7,6 +7,8 @@ import {
   internalMutationGeneric,
   makeFunctionReference,
   type FunctionHandle,
+  type GenericDataModel,
+  type MutationBuilder,
   type RegisteredMutation,
 } from "convex/server";
 import {
@@ -107,10 +109,12 @@ const vWorkflowReturns = (
 export function workflowMutation<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void,
+  DataModel extends GenericDataModel = GenericDataModel,
 >(
   component: WorkflowComponent,
   registered: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-    handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+    handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
+    internalMutation?: MutationBuilder<DataModel, "internal">;
   },
   defaultWorkpoolOptions?: WorkpoolOptions,
 ): RegisteredMutation<
@@ -122,7 +126,9 @@ export function workflowMutation<
     ...defaultWorkpoolOptions,
     ...registered.workpoolOptions,
   };
-  return internalMutationGeneric({
+  const mutationBuilder = (registered.internalMutation ??
+    internalMutationGeneric) as typeof internalMutationGeneric;
+  return mutationBuilder({
     args: v.object({
       // Declared on the mutation itself, so that anything deriving types from the
       // validators (static codegen, function specs) sees the real shape.
@@ -229,10 +235,10 @@ export function workflowMutation<
           `Assertion failed: not blocked but have in-progress journal entry`,
         );
       }
-      const channel = new BaseChannel<StepRequest>(
+      const channel = new BaseChannel<StepRequest<DataModel>>(
         workpoolOptions.maxParallelism ?? 10,
       );
-      const step = createWorkflowCtx(workflowId, channel);
+      const step = createWorkflowCtx<DataModel>(workflowId, channel);
       const executor = new StepExecutor(
         workflowId,
         generationNumber,

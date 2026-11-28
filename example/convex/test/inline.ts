@@ -1,5 +1,11 @@
 import { WorkflowManager } from "@convex-dev/workflow";
 import { v } from "convex/values";
+import {
+  customCtx,
+  customMutation,
+} from "convex-helpers/server/customFunctions";
+import { Triggers } from "convex-helpers/server/triggers";
+import type { DataModel } from "../_generated/dataModel.js";
 import { components, internal } from "../_generated/api.js";
 import {
   internalAction,
@@ -254,3 +260,117 @@ export const someAction = internalAction({
     return `action:${label}`;
   },
 });
+
+const callbackWorkflow = new WorkflowManager(components.workflow, {
+  internalMutation,
+});
+
+const triggers = new Triggers<DataModel>();
+triggers.register("flows", async (ctx, change) => {
+  if (change.operation === "insert" && change.newDoc.in === "trigger") {
+    await ctx.db.insert("flows", {
+      in: "audit",
+      workflowId: change.newDoc.workflowId,
+      out: change.id,
+    });
+  }
+});
+const triggerWorkflow = new WorkflowManager(components.workflow, {
+  internalMutation: customMutation(
+    internalMutation,
+    customCtx(triggers.wrapDB),
+  ),
+});
+export const callbackTriggers = triggerWorkflow
+  .define({
+    args: {},
+    returns: v.null(),
+  })
+  .handler(async (step) => {
+    const derived = step.withOptions({});
+    await derived.run(
+      (ctx) =>
+        ctx.db.insert("flows", {
+          in: "trigger",
+          workflowId: step.workflowId,
+          out: null,
+        }),
+      { name: "insert" },
+    );
+    await step.sleep(1);
+    return null;
+  });
+
+// Randomness inside a callback must not advance the replayed handler's PRNG.
+export const callbackRandomReplay = callbackWorkflow
+  .define({
+    args: {},
+    returns: v.object({
+      value: v.number(),
+      first: v.number(),
+      later: v.number(),
+    }),
+  })
+  .handler(async (step) => {
+    const [first] = await Promise.all([
+      step.run(() => Math.random(), { name: "randomA" }),
+      step.run(
+        async () => {
+          await Promise.resolve();
+          return Math.random();
+        },
+        { name: "randomB" },
+      ),
+    ]);
+    const value = Math.random();
+    await step.run(() => value, { name: "saveRandom", deps: { value } });
+    await step.sleep(1);
+    const later = await step.run(() => Math.random(), { name: "randomLater" });
+    await step.sleep(1);
+    return { value, first, later };
+  });
+
+// Callback writes and the result are persisted together and skipped on replay.
+export const callbackWriteReplay = callbackWorkflow
+  .define({
+    args: {},
+    returns: v.id("flows"),
+  })
+  .handler(async (step) => {
+    const id = await step.run(
+      async (ctx) =>
+        ctx.db.insert("flows", {
+          in: "callback",
+          workflowId: step.workflowId,
+          out: 1,
+        }),
+      { name: "insert" },
+    );
+    await step.sleep(1);
+    return id;
+  });
+
+// A callback shares the outer transaction, including its error handling.
+export const callbackPartialWrite = callbackWorkflow
+  .define({
+    args: { catchError: v.boolean() },
+    returns: v.null(),
+  })
+  .handler(async (step, args) => {
+    try {
+      await step.run(
+        async (ctx) => {
+          await ctx.db.insert("flows", {
+            in: "partial",
+            workflowId: step.workflowId,
+            out: 1,
+          });
+          throw new Error("after write");
+        },
+        { name: "writeThenThrow" },
+      );
+    } catch (error) {
+      if (!args.catchError) throw error;
+    }
+    return null;
+  });

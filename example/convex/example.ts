@@ -10,7 +10,9 @@ import { internalAction, internalMutation } from "./_generated/server.js";
 import { components } from "./_generated/api.js";
 import { vResultValidator } from "@convex-dev/workpool";
 
-export const workflow = new WorkflowManager(components.workflow);
+export const workflow = new WorkflowManager(components.workflow, {
+  internalMutation,
+});
 
 export const myWorkflow = workflow
   .define({
@@ -56,9 +58,16 @@ export const myWorkflow = workflow
     console.timeLog("weather", temperature);
     // Wait a beat before writing the result.
     await step.sleep(100, { name: "cooldown" });
-    await step.runMutation(internal.example.updateFlow, {
-      workflowId: step.workflowId,
-      out: { name, celsius, farenheit, windSpeed, windGust },
+    await step.run(async (ctx) => {
+      const flow = await ctx.db
+        .query("flows")
+        .withIndex("workflowId", (q) => q.eq("workflowId", step.workflowId))
+        .first();
+      if (flow) {
+        await ctx.db.patch("flows", flow._id, {
+          out: { name, celsius, farenheit, windSpeed, windGust },
+        });
+      }
     });
     console.timeEnd("overall");
     return { name, celsius, farenheit, windSpeed, windGust };
@@ -175,26 +184,5 @@ export const getWeather = internalAction({
       windSpeed: data.current.wind_speed_10m,
       windGust: data.current.wind_gusts_10m,
     };
-  },
-});
-
-export const updateFlow = internalMutation({
-  args: {
-    workflowId: vWorkflowId,
-    out: v.any(),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const flow = await ctx.db
-      .query("flows")
-      .withIndex("workflowId", (q) => q.eq("workflowId", args.workflowId))
-      .first();
-    if (!flow) {
-      console.warn(`Flow not found: ${args.workflowId}`);
-      return;
-    }
-    await ctx.db.patch("flows", flow._id, {
-      out: args.out,
-    });
   },
 });

@@ -126,3 +126,93 @@ describe("inline queries and mutations", () => {
     expect(status.result).toEqual({ first: 0, second: 0 });
   });
 });
+
+describe("inline callbacks", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  test("custom mutation wrappers run triggers and replay skips their writes", async () => {
+    const t = initConvexTest();
+    const id = await t.mutation(internal.test.inline.callbackTriggers, {
+      args: {},
+    });
+    assert(typeof id === "string");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const status = await t.query((ctx) =>
+      getStatus(ctx, components.workflow, id),
+    );
+    expect(status).toEqual({ type: "completed", result: null });
+    const rows = await t.query((ctx) =>
+      ctx.db
+        .query("flows")
+        .withIndex("workflowId", (q) => q.eq("workflowId", id))
+        .take(10),
+    );
+    expect(rows.map((row) => row.in).sort()).toEqual(["audit", "trigger"]);
+  });
+
+  test("randomness inside parallel callbacks does not change replay", async () => {
+    const t = initConvexTest();
+    const id = await t.mutation(internal.test.inline.callbackRandomReplay, {
+      args: {},
+    });
+    assert(typeof id === "string");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const status = await t.query((ctx) =>
+      getStatus(ctx, components.workflow, id),
+    );
+    expect(status).toMatchObject({
+      type: "completed",
+      result: {
+        value: expect.any(Number),
+        first: expect.any(Number),
+        later: expect.any(Number),
+      },
+    });
+    assert(status.type === "completed");
+    const result = status.result as { first: number; later: number };
+    expect(result.first).not.toBe(result.later);
+  });
+
+  test("callback writes are not repeated after suspension", async () => {
+    const t = initConvexTest();
+    const id = await t.mutation(internal.test.inline.callbackWriteReplay, {
+      args: {},
+    });
+    assert(typeof id === "string");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const status = await t.query((ctx) =>
+      getStatus(ctx, components.workflow, id),
+    );
+    const rows = await t.query((ctx) =>
+      ctx.db
+        .query("flows")
+        .withIndex("workflowId", (q) => q.eq("workflowId", id))
+        .take(10),
+    );
+    expect(rows).toHaveLength(1);
+    expect(status).toEqual({ type: "completed", result: rows[0]._id });
+  });
+
+  test.each([true, false])(
+    "callback writes persist when catchError=%s",
+    async (catchError) => {
+      const t = initConvexTest();
+      const id = await t.mutation(internal.test.inline.callbackPartialWrite, {
+        args: { catchError },
+      });
+      assert(typeof id === "string");
+      const status = await t.query((ctx) =>
+        getStatus(ctx, components.workflow, id),
+      );
+      expect(status.type).toBe(catchError ? "completed" : "failed");
+      const rows = await t.query((ctx) =>
+        ctx.db
+          .query("flows")
+          .withIndex("workflowId", (q) => q.eq("workflowId", id))
+          .take(10),
+      );
+      expect(rows).toHaveLength(1);
+    },
+  );
+});

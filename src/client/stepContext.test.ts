@@ -20,6 +20,8 @@ function journalEntry(
   overrides: {
     name?: string;
     kind?: "function" | "workflow" | "event";
+    functionType?: "query" | "mutation" | "action";
+    handle?: string;
     args?: Record<string, unknown>;
     runResult?: RunResult;
     stepNumber?: number;
@@ -49,8 +51,8 @@ function journalEntry(
       ...base,
       step: {
         kind: "function",
-        functionType: "action",
-        handle: "handle",
+        functionType: overrides.functionType ?? "action",
+        handle: overrides.handle ?? "handle",
         ...stepCommon,
       },
     } as unknown as JournalEntry;
@@ -369,6 +371,365 @@ describe("StepExecutor + WorkflowCtx integration", () => {
     ]);
 
     expect(result).toEqual([1, 2, 3]);
+  });
+
+  it("ctx.run replays a successful inline handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-11" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: 99 },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => 99),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe(99);
+  });
+
+  it("ctx.run replays a failed inline handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-12" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: {},
+      runResult: { kind: "failed", error: "inline boom" },
+    });
+
+    const [error] = await Promise.all([
+      ctx
+        .run(async () => {
+          throw new Error("inline boom");
+        })
+        .catch((e: Error) => e),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("inline boom");
+  });
+
+  it("ctx.run uses custom name when provided", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-13" as any, channel);
+
+    const entry = journalEntry({
+      name: "myCustomStep",
+      functionType: "mutation",
+      handle: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: "named" },
+    });
+
+    const handler = async () => {
+      return ctx.run(async () => "named", { name: "myCustomStep" });
+    };
+
+    const [result] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe("named");
+  });
+
+  it("ctx.run works sequentially with other steps", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-14" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "inline-result" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "step2",
+        args: {},
+        runResult: { kind: "success", returnValue: "action-result" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      const a = await ctx.run(async () => "inline-result");
+      const b = await ctx.runAction(fakeFuncRef("step2") as any, {});
+      return [a, b];
+    };
+
+    const [results] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(results).toEqual(["inline-result", "action-result"]);
+  });
+
+  it("throws when calling step methods inside ctx.run()", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-15" as any, channel);
+
+    // Read the inline message from the channel, invoke its handler (which
+    // sets the lock), and resolve based on the handler outcome.
+    const executeInline = async () => {
+      const message = await channel.get();
+      if (message.target.kind !== "inline") throw new Error("expected inline");
+      try {
+        const result = await message.target.handler({} as any);
+        message.resolve({ kind: "success", returnValue: result });
+      } catch (e) {
+        message.resolve({
+          kind: "failed",
+          error: (e as Error).message,
+        });
+      }
+    };
+
+    const [error] = await Promise.all([
+      ctx
+        .run(async () => {
+          // This should throw — the guard fires before the channel push.
+          await ctx.runMutation(fakeFuncRef("bad") as any, {});
+        })
+        .catch((e: Error) => e),
+      executeInline(),
+    ]);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+  });
+
+  it("ctx.run() works normally after a previous ctx.run() completes", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-16" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "first" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "success", returnValue: "second" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      const a = await ctx.run(async () => "first");
+      const b = await ctx.run(async () => "second");
+      return [a, b];
+    };
+
+    const [results] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(results).toEqual(["first", "second"]);
+  });
+
+  it("resets the lock flag even when the inline handler throws", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-17" as any, channel);
+
+    const entries = [
+      journalEntry({
+        name: "run",
+        functionType: "mutation",
+        handle: "inline",
+        args: {},
+        runResult: { kind: "failed", error: "handler error" },
+        stepNumber: 0,
+      }),
+      journalEntry({
+        name: "step2",
+        args: {},
+        runResult: { kind: "success", returnValue: "ok" },
+        stepNumber: 1,
+      }),
+    ];
+
+    const handler = async () => {
+      try {
+        await ctx.run(async () => {
+          throw new Error("handler error");
+        });
+      } catch {
+        // expected
+      }
+      // This should work — the lock must have been released by try/finally.
+      return ctx.runAction(fakeFuncRef("step2") as any, {});
+    };
+
+    const [result] = await Promise.all([
+      handler(),
+      replayFromJournal(channel, entries),
+    ]);
+
+    expect(result).toBe("ok");
+  });
+
+  it("parallel step.run() calls via Promise.all work correctly", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-18" as any, channel);
+
+    // Simulate the executor batching and running both inline handlers
+    // concurrently (as the real executor does via Promise.all).
+    const executeInlines = async () => {
+      const msg1 = await channel.get();
+      const msg2 = await channel.get();
+      // Run both handlers concurrently, just like the real executor.
+      await Promise.all(
+        [msg1, msg2].map(async (msg) => {
+          if (msg.target.kind !== "inline") throw new Error("expected inline");
+          try {
+            const result = await msg.target.handler({} as any);
+            msg.resolve({ kind: "success", returnValue: result });
+          } catch (e) {
+            msg.resolve({ kind: "failed", error: (e as Error).message });
+          }
+        }),
+      );
+    };
+
+    const [results] = await Promise.all([
+      Promise.all([ctx.run(async () => "a"), ctx.run(async () => "b")]),
+      executeInlines(),
+    ]);
+
+    expect(results).toEqual(["a", "b"]);
+  });
+
+  it("guard still fires inside each parallel step.run() handler", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-19" as any, channel);
+
+    const executeInlines = async () => {
+      const msg1 = await channel.get();
+      const msg2 = await channel.get();
+      await Promise.all(
+        [msg1, msg2].map(async (msg) => {
+          if (msg.target.kind !== "inline") throw new Error("expected inline");
+          try {
+            const result = await msg.target.handler({} as any);
+            msg.resolve({ kind: "success", returnValue: result });
+          } catch (e) {
+            msg.resolve({ kind: "failed", error: (e as Error).message });
+          }
+        }),
+      );
+    };
+
+    const [errors] = await Promise.all([
+      Promise.all([
+        ctx
+          .run(async () => {
+            await ctx.runMutation(fakeFuncRef("bad1") as any, {});
+          })
+          .catch((e: Error) => e),
+        ctx
+          .run(async () => {
+            await ctx.runMutation(fakeFuncRef("bad2") as any, {});
+          })
+          .catch((e: Error) => e),
+      ]),
+      executeInlines(),
+    ]);
+
+    expect(errors[0]).toBeInstanceOf(Error);
+    expect((errors[0] as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+    expect(errors[1]).toBeInstanceOf(Error);
+    expect((errors[1] as Error).message).toMatch(
+      /Cannot call step methods inside a step\.run\(\) handler/,
+    );
+  });
+
+  it("ctx.run() journals deps and replays when they match", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-20" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: { userId: "u1", count: 3 },
+      runResult: { kind: "success", returnValue: "done" },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => "done", {
+        deps: { userId: "u1", count: 3 },
+      }),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe("done");
+  });
+
+  it("ctx.run() sends deps through the channel as args", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-21" as any, channel);
+
+    const deps = { userId: "u1", count: 3 };
+
+    // Read the message from the channel and verify the args match deps.
+    const inspectMessage = async () => {
+      const message = await channel.get();
+      expect(message.target.args).toEqual(deps);
+      expect(message.target.kind).toBe("inline");
+      message.resolve({ kind: "success", returnValue: "ok" });
+    };
+
+    const [result] = await Promise.all([
+      ctx.run(async () => "ok", { deps }),
+      inspectMessage(),
+    ]);
+
+    expect(result).toBe("ok");
+  });
+
+  it("ctx.run() without deps still journals empty args", async () => {
+    const channel = new BaseChannel<StepRequest>(0);
+    const ctx = createWorkflowCtx("wf-22" as any, channel);
+
+    const entry = journalEntry({
+      name: "run",
+      functionType: "mutation",
+      handle: "inline",
+      args: {},
+      runResult: { kind: "success", returnValue: 42 },
+    });
+
+    const [result] = await Promise.all([
+      ctx.run(async () => 42),
+      replayFromJournal(channel, [entry]),
+    ]);
+
+    expect(result).toBe(42);
   });
 });
 
@@ -722,5 +1083,62 @@ describe("transactionLimits", () => {
         { inline: true, runAfter: 1000 },
       ),
     ).rejects.toThrow("Cannot combine `inline` with `runAt` or `runAfter`.");
+  });
+});
+
+describe("inline callbacks with derived contexts", () => {
+  test.each(["original", "derived", "new"] as const)(
+    "guards nested steps through a %s context",
+    async (context) => {
+      const channel = new BaseChannel<StepRequest>(1);
+      const step = createWorkflowCtx("wf-test" as WorkflowId, channel);
+      const derived = step.withOptions({});
+      const nested = () =>
+        context === "original"
+          ? step
+          : context === "derived"
+            ? derived
+            : step.withOptions({});
+      const result = derived.run(() => nested().sleep(1));
+      const message = await channel.get();
+      expect(message.target.kind).toBe("inline");
+      if (message.target.kind !== "inline") throw new Error("expected inline");
+      await expect(message.target.handler({} as any)).rejects.toThrow(
+        "Cannot call step methods inside a step.run() handler",
+      );
+      message.resolve({ kind: "success", returnValue: null });
+      await result;
+      const after = step.run(() => "ok");
+      const next = await channel.get();
+      next.resolve({ kind: "success", returnValue: "ok" });
+      expect(await after).toBe("ok");
+    },
+  );
+
+  test("inherits unstableArgs, with explicit deps restoring validation", async () => {
+    const channel = new BaseChannel<StepRequest>(3);
+    const step = createWorkflowCtx(
+      "wf-test" as WorkflowId,
+      channel,
+    ).withOptions({ unstableArgs: true });
+    const results = [
+      step.run(() => 1),
+      step.run(() => 2, { deps: { count: 2 } }),
+      step.run(() => 3, { deps: {} }),
+    ];
+    const messages = [
+      await channel.get(),
+      await channel.get(),
+      await channel.get(),
+    ];
+    expect(messages.map((message) => message.unstableArgs)).toEqual([
+      true,
+      false,
+      true,
+    ]);
+    for (const message of messages) {
+      message.resolve({ kind: "success", returnValue: null });
+    }
+    await Promise.all(results);
   });
 });

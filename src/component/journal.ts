@@ -166,6 +166,10 @@ export const startSteps = mutation({
           step.workflowId = workflowId;
         } else if (step.runResult) {
           // Already completed inline by the caller — nothing to enqueue.
+          assert(
+            !step.kind || step.kind === "function",
+            `Unexpected inline-completed step kind: ${step.kind}`,
+          );
           console.event("stepCompleted", {
             workflowId: entry.workflowId,
             workflowName: workflow.name,
@@ -185,7 +189,7 @@ export const startSteps = mutation({
             {},
             { context, onComplete, name, ...schedulerOptions },
           );
-        } else {
+        } else if (!step.kind || step.kind === "function") {
           const context: OnCompleteContext = {
             generationNumber,
             stepId,

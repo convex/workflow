@@ -458,6 +458,47 @@ If a step reads or writes a large amount of data, it's better to leave it
 running through the work pool (the default) so it gets its own transaction
 budget.
 
+### Inline callbacks
+
+`step.run()` journals a callback that receives your app's mutation context. Pass
+your generated `internalMutation` to the manager for typed database access:
+
+```ts
+const workflow = new WorkflowManager(components.workflow, {
+  internalMutation,
+});
+
+// Inside a workflow handler:
+const user = await step.run((ctx) => ctx.db.get("users", args.userId), {
+  name: "loadUser",
+  deps: { userId: args.userId },
+});
+```
+
+On replay, the callback is skipped and its recorded result is returned. Use
+distinct, stable names and declare captured inputs in `deps`. Changing a
+declared dependency causes a journal mismatch; it does not rerun the callback.
+Callback code and undeclared captures are not compared. Explicit `deps: {}`
+disables dependency checking. Return values must be Convex values; `undefined`
+becomes `null`. Avoid modifying variables in the enclosing workflow from the
+callback, since those modifications would be skipped on replay. Call database
+helpers with the callback's `ctx`; workflow step methods cannot be called inside
+it.
+
+**Callbacks have no rollback boundary of their own.** Writes made before a
+callback throws can commit even if the workflow fails. For step-level rollback,
+use a registered function with `step.runMutation()`. Sequential callbacks can
+see earlier writes in the same poll, and all inline work shares that poll's
+transaction limits. Use bounded operations; move large workloads to separate
+mutation steps. Parallel callbacks share the transaction and may interleave, so
+avoid relying on their write order.
+
+A compatible custom `internalMutation`, such as one wrapping `ctx.db` for
+triggers, wraps the entire poll and runs again on replay. Its setup and success
+hooks are not journaled steps. Builders requiring extra arguments are
+unsupported, and additional injected context fields are not inferred in
+callbacks.
+
 ### Unstable step arguments and default step options
 
 On replay, each step's arguments are validated against the journal, and a

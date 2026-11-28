@@ -20,11 +20,12 @@ import type {
 import { MAX_JOURNAL_SIZE, failedResult } from "../shared.js";
 import type { EventId, SchedulerOptions } from "../types.js";
 import { pick } from "convex-helpers";
+import { patchMath } from "./environment.js";
 
 export type WorkerResult =
   { type: "handlerDone"; runResult: RunResult } | { type: "executorBlocked" };
 
-export type StepRequest = {
+export type StepRequest<DM extends GenericDataModel = GenericDataModel> = {
   name: string;
   target:
     | {
@@ -47,6 +48,11 @@ export type StepRequest = {
     | {
         kind: "sleep";
         args: Record<string, never>;
+      }
+    | {
+        kind: "inline";
+        handler: (ctx: GenericMutationCtx<DM>) => Promise<unknown>;
+        args: Record<string, unknown>;
       };
   retry: RetryBehavior | boolean | undefined;
   inline: boolean;
@@ -57,19 +63,25 @@ export type StepRequest = {
   resolve: (result: RunResult) => void;
 };
 
-export class StepExecutor {
+export class StepExecutor<DataModel extends GenericDataModel> {
   private journalEntrySize: number;
+  private nextStepNumber: number;
+  private inlineRandom: (() => number) | undefined;
 
   constructor(
     private workflowId: string,
     private generationNumber: number,
-    private ctx: GenericMutationCtx<GenericDataModel>,
+    private ctx: GenericMutationCtx<DataModel>,
     private component: WorkflowComponent,
     private journalEntries: Array<JournalEntry>,
-    private receiver: BaseChannel<StepRequest>,
+    private receiver: BaseChannel<StepRequest<DataModel>>,
     private now: number,
     private workpoolOptions: WorkpoolOptions | undefined,
   ) {
+    this.nextStepNumber = journalEntries.reduce(
+      (next, entry) => Math.max(next, entry.stepNumber + 1),
+      0,
+    );
     this.journalEntrySize = journalEntries.reduce(
       (size, entry) => size + getConvexSize(entry),
       0,
@@ -112,7 +124,7 @@ export class StepExecutor {
 
   getGenerationState() {
     if (this.journalEntries.length <= this.receiver.bufferSize) {
-      return { now: this.now, latest: true };
+      return { now: this.now, latest: true, inlineRandom: this.inlineRandom };
     }
     return {
       // We use the next entry's startedAt, since we're in code just before that
@@ -124,7 +136,7 @@ export class StepExecutor {
     };
   }
 
-  completeMessage(message: StepRequest, entry: JournalEntry) {
+  completeMessage(message: StepRequest<DataModel>, entry: JournalEntry) {
     if (entry.step.inProgress) {
       throw new Error(
         `Assertion failed: not blocked but have in-progress journal entry`,
@@ -134,13 +146,17 @@ export class StepExecutor {
       entry.step,
       message.unstableArgs ? ["name", "kind"] : ["name", "kind", "args"],
     );
-    const messageFields = message.unstableArgs
-      ? { name: message.name, kind: message.target.kind }
-      : {
-          name: message.name,
-          kind: message.target.kind,
-          args: message.target.args as Value,
-        };
+    const messageFields = {
+      name: message.name,
+      kind: message.target.kind,
+      args: message.target.args as Value | undefined,
+    };
+    if (message.unstableArgs) {
+      delete messageFields.args;
+    }
+    if (message.target.kind === "inline") {
+      messageFields.kind = "function";
+    }
     const stepJson = JSON.stringify(convexToJson(stepFields));
     const messageJson = JSON.stringify(convexToJson(messageFields));
     if (stepJson !== messageJson) {
@@ -156,41 +172,63 @@ export class StepExecutor {
     message.resolve(entry.step.runResult);
   }
 
-  async startSteps(messages: StepRequest[]): Promise<JournalEntry[]> {
-    const steps = await Promise.all(
+  async startSteps(
+    messages: StepRequest<DataModel>[],
+  ): Promise<JournalEntry[]> {
+    const firstStepNumber = this.nextStepNumber;
+    this.nextStepNumber += messages.length;
+    // A batch shares one transaction and resolves only after every callback
+    // finishes. Give it a separate stream, seeded by its journal position so
+    // later polls do not reuse randomness from earlier callbacks.
+    if (messages.some((message) => message.target.kind === "inline")) {
+      this.inlineRandom = patchMath(
+        Math,
+        `${this.workflowId}:inline:${firstStepNumber}`,
+      ).random;
+    }
+    const results = await Promise.allSettled(
       messages.map(async (message) => {
         const args = message.target.args ?? {};
         const target = message.target;
 
         let runResult: RunResult | undefined;
         if (message.inline) {
-          if (target.kind !== "function" || target.functionType === "action") {
+          if (target.kind === "inline") {
+            try {
+              const returnValue = (await target.handler(this.ctx)) ?? null;
+              runResult = { kind: "success", returnValue };
+            } catch (error: unknown) {
+              runResult = failedResult(error);
+            }
+          } else if (
+            target.kind === "function" &&
+            target.functionType !== "action"
+          ) {
+            try {
+              const result =
+                target.functionType === "query"
+                  ? await (this.ctx.runQuery as any)(
+                      target.function as FunctionReference<
+                        typeof target.functionType
+                      >,
+                      target.args,
+                      { transactionLimits: message.transactionLimits },
+                    )
+                  : await (this.ctx.runMutation as any)(
+                      target.function as FunctionReference<
+                        typeof target.functionType
+                      >,
+                      target.args,
+                      { transactionLimits: message.transactionLimits },
+                    );
+              runResult = { kind: "success", returnValue: result ?? null };
+            } catch (error: unknown) {
+              runResult = failedResult(error);
+            }
+          } else {
             throw new Error(
-              "Inline execution is only supported for queries and mutations.",
+              "Inline execution is only supported for queries, mutations, and inline handlers.",
             );
-          }
-          try {
-            const result =
-              target.functionType === "query"
-                ? // cast until transactionLimits is shipped / peer dep
-                  await (this.ctx.runQuery as any)(
-                    target.function as FunctionReference<
-                      typeof target.functionType
-                    >,
-                    target.args,
-                    { transactionLimits: message.transactionLimits },
-                  )
-                : // cast until transactionLimits is shipped / peer dep
-                  await (this.ctx.runMutation as any)(
-                    target.function as FunctionReference<
-                      typeof target.functionType
-                    >,
-                    target.args,
-                    { transactionLimits: message.transactionLimits },
-                  );
-            runResult = { kind: "success", returnValue: result ?? null };
-          } catch (error: unknown) {
-            runResult = failedResult(error);
           }
         }
 
@@ -234,8 +272,18 @@ export class StepExecutor {
               ...commonFields,
             };
             break;
-          default:
+          case "inline":
+            step = {
+              kind: "function",
+              functionType: "mutation",
+              handle: "inline",
+              ...commonFields,
+            };
+            break;
+          default: {
+            const _: never = target;
             throw new Error(`Unknown step kind: ${(target as any).kind}`);
+          }
         }
         return {
           retry: message.retry,
@@ -244,6 +292,13 @@ export class StepExecutor {
         };
       }),
     );
+    // Drain the entire batch before restoring the environment, including when
+    // another step fails to serialize or create a function handle.
+    this.inlineRandom = undefined;
+    const steps = results.map((result) => {
+      if (result.status === "rejected") throw result.reason;
+      return result.value;
+    });
     const entries = (await this.ctx.runMutation(
       this.component.journal.startSteps,
       {

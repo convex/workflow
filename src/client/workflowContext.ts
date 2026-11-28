@@ -9,6 +9,8 @@ import type {
   FunctionReturnType,
   FunctionType,
   FunctionVisibility,
+  GenericDataModel,
+  GenericMutationCtx,
 } from "convex/server";
 import { ConvexError, type Validator } from "convex/values";
 import type { EventId, SchedulerOptions, WorkflowId } from "../types.js";
@@ -73,142 +75,249 @@ type InlineArgs =
       transactionLimits?: TransactionLimits;
     };
 
-export type WorkflowCtx = {
-  /**
-   * The ID of the workflow currently running.
-   */
-  workflowId: WorkflowId;
-  /**
-   * Run a query with the given name and arguments.
-   *
-   * @param query - The query to run, like `internal.index.exampleQuery`.
-   * @param args - The arguments to the query function.
-   * @param opts - Options for scheduling and naming the query.
-   */
-  runQuery<
-    Query extends
-      | FunctionReference<"query", FunctionVisibility>
-      | FunctionReference_future<"query", FunctionVisibility>,
-  >(
-    query: Query,
-    ...args: ArgsAndOptions<Query, RunOptions & InlineArgs>
-  ): Promise<FunctionReturnType<Query>>;
+export type WorkflowCtx<DataModel extends GenericDataModel = GenericDataModel> =
+  {
+    /**
+     * The ID of the workflow currently running.
+     */
+    workflowId: WorkflowId;
+    /**
+     * Run a query with the given name and arguments.
+     *
+     * @param query - The query to run, like `internal.index.exampleQuery`.
+     * @param args - The arguments to the query function.
+     * @param opts - Options for scheduling and naming the query.
+     */
+    runQuery<
+      Query extends
+        | FunctionReference<"query", FunctionVisibility>
+        | FunctionReference_future<"query", FunctionVisibility>,
+    >(
+      query: Query,
+      ...args: ArgsAndOptions<Query, RunOptions & InlineArgs>
+    ): Promise<FunctionReturnType<Query>>;
 
-  /**
-   * Run a mutation with the given name and arguments.
-   *
-   * @param mutation - The mutation to run, like `internal.index.exampleMutation`.
-   * @param args - The arguments to the mutation function.
-   * @param opts - Options for scheduling and naming the mutation.
-   */
-  runMutation<
-    Mutation extends
-      | FunctionReference<"mutation", FunctionVisibility>
-      | FunctionReference_future<"mutation", FunctionVisibility>,
-  >(
-    mutation: Mutation,
-    ...args: ArgsAndOptions<Mutation, RunOptions & InlineArgs>
-  ): Promise<FunctionReturnType<Mutation>>;
+    /**
+     * Run a mutation with the given name and arguments.
+     *
+     * @param mutation - The mutation to run, like `internal.index.exampleMutation`.
+     * @param args - The arguments to the mutation function.
+     * @param opts - Options for scheduling and naming the mutation.
+     */
+    runMutation<
+      Mutation extends
+        | FunctionReference<"mutation", FunctionVisibility>
+        | FunctionReference_future<"mutation", FunctionVisibility>,
+    >(
+      mutation: Mutation,
+      ...args: ArgsAndOptions<Mutation, RunOptions & InlineArgs>
+    ): Promise<FunctionReturnType<Mutation>>;
 
-  /**
-   * Run an action with the given name and arguments.
-   *
-   * @param action - The action to run, like `internal.index.exampleAction`.
-   * @param args - The arguments to the action function.
-   * @param opts - Options for retrying, scheduling and naming the action.
-   */
-  runAction<
-    Action extends
-      | FunctionReference<"action", FunctionVisibility>
-      | FunctionReference_future<"action", FunctionVisibility>,
-  >(
-    action: Action,
-    ...args: ArgsAndOptions<Action, RunOptions & RetryOption>
-  ): Promise<FunctionReturnType<Action>>;
+    /**
+     * Run an action with the given name and arguments.
+     *
+     * @param action - The action to run, like `internal.index.exampleAction`.
+     * @param args - The arguments to the action function.
+     * @param opts - Options for retrying, scheduling and naming the action.
+     */
+    runAction<
+      Action extends
+        | FunctionReference<"action", FunctionVisibility>
+        | FunctionReference_future<"action", FunctionVisibility>,
+    >(
+      action: Action,
+      ...args: ArgsAndOptions<Action, RunOptions & RetryOption>
+    ): Promise<FunctionReturnType<Action>>;
 
-  /**
-   * Run a workflow with the given name and arguments.
-   *
-   * @param workflow - The workflow to run, like `internal.index.exampleWorkflow`.
-   * @param args - The arguments to the workflow function.
-   * @param opts - Options for retrying, scheduling and naming the workflow.
-   */
-  runWorkflow<Workflow extends FunctionReference<"mutation", "internal">>(
-    workflow: Workflow,
-    args: FunctionArgs<Workflow>["args"],
-    opts?: RunOptions,
-  ): Promise<WorkflowReturnType<Workflow>>;
+    /**
+     * Run a workflow with the given name and arguments.
+     *
+     * @param workflow - The workflow to run, like `internal.index.exampleWorkflow`.
+     * @param args - The arguments to the workflow function.
+     * @param opts - Options for retrying, scheduling and naming the workflow.
+     */
+    runWorkflow<Workflow extends FunctionReference<"mutation", "internal">>(
+      workflow: Workflow,
+      args: FunctionArgs<Workflow>["args"],
+      opts?: RunOptions,
+    ): Promise<WorkflowReturnType<Workflow>>;
 
-  /**
-   * Blocks until a matching event is sent to this workflow.
-   *
-   * If an ID is specified, an event with that ID must already exist and must
-   * not already be "awaited" or "consumed".
-   *
-   * If a name is specified, the first available event is consumed that matches
-   * the name. If there is no available event, it will create one with that name
-   * with status "awaited".
-   * @param event
-   */
-  awaitEvent<T = unknown, Name extends string = string>(
-    event: (
-      { name: Name; id?: EventId<Name> } | { name?: Name; id: EventId<Name> }
-    ) & {
-      validator?: Validator<T, any, any>;
-    },
-  ): Promise<T>;
+    /**
+     * Run a handler inline within the workflow's mutation transaction.
+     * The result is journaled like any other step, so on replay it returns the
+     * saved value without re-executing the handler.
+     *
+     * This gives direct access to the underlying mutation context, allowing
+     * database reads/writes, running queries, and scheduling functions all
+     * within the same transaction as the workflow handler.
+     *
+     * This is not a separate transaction or savepoint. Writes made before the
+     * handler throws are retained, even when the workflow records a failure.
+     * Use `runMutation` with a registered function when you need rollback on
+     * a step error. All inline work shares the poll's transaction limits.
+     *
+     * The handler can read from variables in the enclosing scope, but should
+     * not modify them — on replay the handler is skipped and the journaled
+     * result is returned, so any side effects outside the handler's return
+     * value will not be replayed.
+     * Give each callback a stable, distinct name and declare captured values
+     * in `deps`; neither callback code nor undeclared captures are compared.
+     * Return values must be Convex values; undefined/void is saved as null.
+     *
+     * To get a fully typed `ctx` with your data model, provide your app's
+     * `internalMutation` when creating the `WorkflowManager`:
+     *
+     * ```ts
+     * import { internalMutation } from "./_generated/server";
+     * const workflow = new WorkflowManager(components.workflow, {
+     *   internalMutation,
+     * });
+     * ```
+     *
+     * @param handler - A function receiving the mutation context to run inline.
+     * @param opts - Options for naming the step and declaring dependencies.
+     */
+    run<T>(
+      handler: (ctx: GenericMutationCtx<DataModel>) => T | Promise<T>,
+      opts?: {
+        name?: string;
+        /**
+         * Dependencies that are validated and journaled as part of this step.
+         * On replay, the saved deps are compared against the current deps —
+         * if they differ, replay fails with a journal mismatch. The handler is
+         * not re-executed to update an already recorded result.
+         * Use this to capture values from the enclosing scope that the handler
+         * depends on.
+         * If you pass {}, it will not check for dependency mismatches, akin to
+         * unstableArgs in step.run*. Omitted deps use empty args and inherit
+         * withOptions({ unstableArgs }); nonempty deps always enable checking.
+         */
+        deps?: Record<string, unknown>;
+      },
+    ): Promise<T extends void ? null : T>;
 
-  /**
-   * Suspend execution for the given duration.
-   *
-   * @param duration - The number of milliseconds to sleep.
-   * @param opts - Optionally name the step. Default: "sleep"
-   */
-  sleep(duration: number, opts?: { name?: string }): Promise<void>;
+    /**
+     * Blocks until a matching event is sent to this workflow.
+     *
+     * If an ID is specified, an event with that ID must already exist and must
+     * not already be "awaited" or "consumed".
+     *
+     * If a name is specified, the first available event is consumed that matches
+     * the name. If there is no available event, it will create one with that name
+     * with status "awaited".
+     * @param event
+     */
+    awaitEvent<T = unknown, Name extends string = string>(
+      event: (
+        { name: Name; id?: EventId<Name> } | { name?: Name; id: EventId<Name> }
+      ) & {
+        validator?: Validator<T, any, any>;
+      },
+    ): Promise<T>;
 
-  /**
-   * Derive a new `WorkflowCtx` that applies the given options to every step
-   * it runs, unless overridden at the call site. The original ctx is
-   * unaffected.
-   *
-   * This is especially useful when a library makes step calls on your behalf
-   * (e.g. another component's client calling `ctx.runMutation` internally),
-   * so you have no call site at which to pass options like `unstableArgs`:
-   *
-   * ```ts
-   * // Workpool embeds its config (e.g. maxParallelism) in its enqueue args,
-   * // so config changes would otherwise fail replays of in-flight workflows.
-   * const lenient = step.withOptions({ unstableArgs: true });
-   * await pool.enqueueAction(lenient, internal.scrape.page, { url });
-   * ```
-   *
-   * Chaining is supported; later defaults override earlier ones.
-   */
-  withOptions(defaults: StepDefaults): WorkflowCtx;
-};
+    /**
+     * Suspend execution for the given duration.
+     *
+     * @param duration - The number of milliseconds to sleep.
+     * @param opts - Optionally name the step. Default: "sleep"
+     */
+    sleep(duration: number, opts?: { name?: string }): Promise<void>;
 
-export function createWorkflowCtx(
+    /**
+     * Derive a new `WorkflowCtx` that applies the given options to every step
+     * it runs, unless overridden at the call site. The original ctx is
+     * unaffected.
+     *
+     * This is especially useful when a library makes step calls on your behalf
+     * (e.g. another component's client calling `ctx.runMutation` internally),
+     * so you have no call site at which to pass options like `unstableArgs`:
+     *
+     * ```ts
+     * // Workpool embeds its config (e.g. maxParallelism) in its enqueue args,
+     * // so config changes would otherwise fail replays of in-flight workflows.
+     * const lenient = step.withOptions({ unstableArgs: true });
+     * await pool.enqueueAction(lenient, internal.scrape.page, { url });
+     * ```
+     *
+     * Chaining is supported; later defaults override earlier ones.
+     */
+    withOptions(defaults: StepDefaults): WorkflowCtx<DataModel>;
+  };
+
+export function createWorkflowCtx<
+  DataModel extends GenericDataModel = GenericDataModel,
+>(
   workflowId: WorkflowId,
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<StepRequest<DataModel>>,
   defaults?: StepDefaults,
-): WorkflowCtx {
+  executionState = { inlineDepth: 0 },
+): WorkflowCtx<DataModel> {
+  const guardNotInlined = () => {
+    if (executionState.inlineDepth > 0) {
+      throw new Error(
+        "Cannot call step methods inside a step.run() handler. " +
+          "Use the `ctx` argument passed to the handler instead, or " +
+          "move this call outside of step.run().",
+      );
+    }
+  };
+
   return {
     workflowId,
     withOptions: (opts) =>
-      createWorkflowCtx(workflowId, sender, { ...defaults, ...opts }),
+      createWorkflowCtx(
+        workflowId,
+        sender,
+        { ...defaults, ...opts },
+        executionState,
+      ),
     runQuery: async (query, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "query", query, args, opts, defaults);
     },
 
     runMutation: async (mutation, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "mutation", mutation, args, opts, defaults);
     },
 
     runAction: async (action, args, opts?) => {
+      guardNotInlined();
       return runFunction(sender, "action", action, args, opts, defaults);
     },
 
+    run: async (handler, opts?) => {
+      guardNotInlined();
+      // allow {} to behave like unstableArgs
+      const unstableArgs =
+        opts?.deps !== undefined
+          ? Object.keys(opts.deps).length === 0
+          : (defaults?.unstableArgs ?? false);
+
+      return run(sender, {
+        name: opts?.name ?? "run",
+        target: {
+          kind: "inline",
+          handler: async (ctx: GenericMutationCtx<DataModel>) => {
+            executionState.inlineDepth++;
+            try {
+              return await handler(ctx);
+            } finally {
+              executionState.inlineDepth--;
+            }
+          },
+          args: opts?.deps ?? {},
+        },
+        retry: undefined,
+        inline: true,
+        transactionLimits: undefined,
+        schedulerOptions: {},
+        unstableArgs,
+      }) as any;
+    },
+
     runWorkflow: async (workflow, args, opts?) => {
+      guardNotInlined();
       const { name, unstableArgs, ...schedulerOptions } = opts ?? {};
       return run(sender, {
         name: name ?? safeFunctionName(workflow),
@@ -226,6 +335,7 @@ export function createWorkflowCtx(
     },
 
     sleep: async (duration, opts?) => {
+      guardNotInlined();
       await run(sender, {
         name: opts?.name ?? "sleep",
         target: {
@@ -241,6 +351,7 @@ export function createWorkflowCtx(
     },
 
     awaitEvent: async (event) => {
+      guardNotInlined();
       const result = await run(sender, {
         name: event.name ?? event.id ?? "Event",
         target: {
@@ -258,15 +369,16 @@ export function createWorkflowCtx(
       }
       return result as any;
     },
-  } satisfies WorkflowCtx;
+  };
 }
 
 async function runFunction<
   F extends
     | FunctionReference<FunctionType, FunctionVisibility>
     | FunctionReference_future<FunctionType, FunctionVisibility>,
+  DM extends GenericDataModel,
 >(
-  sender: BaseChannel<StepRequest>,
+  sender: BaseChannel<StepRequest<DM>>,
   functionType: FunctionType,
   f: F,
   args: Record<string, unknown> | undefined,
@@ -313,9 +425,9 @@ async function runFunction<
   });
 }
 
-async function run(
-  sender: BaseChannel<StepRequest>,
-  request: Omit<StepRequest, "resolve">,
+async function run<DM extends GenericDataModel>(
+  sender: BaseChannel<StepRequest<DM>>,
+  request: Omit<StepRequest<DM>, "resolve">,
 ): Promise<unknown> {
   let send: Promise<void>;
   const p = new Promise<RunResult>((resolve) => {

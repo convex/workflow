@@ -12,6 +12,7 @@ import {
   type GenericDataModel,
   type GenericMutationCtx,
   type GenericQueryCtx,
+  type MutationBuilder,
   type PaginationOptions,
   type PaginationResult,
   type RegisteredMutation,
@@ -108,8 +109,9 @@ export type WorkflowDefinition<
 export type WorkflowHandler<
   ArgsValidator extends PropertyValidators,
   ReturnsValidator extends Validator<any, "required", any> | void,
+  DataModel extends GenericDataModel = GenericDataModel,
 > = (
-  step: WorkflowCtx,
+  step: WorkflowCtx<DataModel>,
   args: ObjectType<ArgsValidator>,
 ) => Promise<ReturnValueForOptionalValidator<ReturnsValidator>>;
 
@@ -145,9 +147,12 @@ export type WorkflowStatus =
 export function defineWorkflow<
   AV extends PropertyValidators,
   RV extends Validator<any, "required", any> | void = void,
+  DM extends GenericDataModel = GenericDataModel,
 >(
   component: WorkflowComponent,
-  config: WorkflowDefinition<AV, RV>,
+  config: WorkflowDefinition<AV, RV> & {
+    internalMutation?: MutationBuilder<DM, "internal">;
+  },
 ): {
   /**
    * Define the workflow handler function.
@@ -155,7 +160,7 @@ export function defineWorkflow<
    */
   handler(
     fn: (
-      step: WorkflowCtx,
+      step: WorkflowCtx<DM>,
       args: ObjectType<AV>,
     ) => Promise<ReturnValueForOptionalValidator<RV>>,
   ): RegisteredMutation<
@@ -495,11 +500,29 @@ export async function cleanup(
   });
 }
 
-export class WorkflowManager {
+export class WorkflowManager<
+  DataModel extends GenericDataModel = GenericDataModel,
+> {
   constructor(
     public component: WorkflowComponent,
     public options?: {
-      workpoolOptions: WorkpoolOptions;
+      workpoolOptions?: WorkpoolOptions;
+      /**
+       * Provide your app's `internalMutation` (from `_generated/server`) to get
+       * a fully typed `ctx` in `step.run()` handlers, with your data model's
+       * tables available on `ctx.db`. Compatible context wrappers (such as
+       * triggers.wrapDB) run once per workflow poll, including replays. Custom
+       * builders that require additional arguments are not supported; injected
+       * context fields beyond GenericMutationCtx are not exposed by this type.
+       *
+       * ```ts
+       * import { internalMutation } from "./_generated/server";
+       * const workflow = new WorkflowManager(components.workflow, {
+       *   internalMutation,
+       * });
+       * ```
+       */
+      internalMutation?: MutationBuilder<DataModel, "internal">;
     },
   ) {}
 
@@ -519,7 +542,7 @@ export class WorkflowManager {
     ReturnsValidator extends Validator<unknown, "required", string> | void,
   >(
     workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-      handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+      handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): RegisteredMutation<
     "internal",
@@ -538,7 +561,7 @@ export class WorkflowManager {
      */
     handler(
       fn: (
-        step: WorkflowCtx,
+        step: WorkflowCtx<DataModel>,
         args: ObjectType<ArgsValidator>,
       ) => Promise<ReturnValueForOptionalValidator<ReturnsValidator>>,
     ): RegisteredMutation<
@@ -552,14 +575,19 @@ export class WorkflowManager {
     ReturnsValidator extends Validator<unknown, "required", string> | void,
   >(
     workflow: WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-      handler?: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+      handler?: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
     },
   ): unknown {
+    const withMutation = {
+      ...workflow,
+      internalMutation: this.options?.internalMutation,
+    };
     if (workflow.handler) {
       return workflowMutation(
         this.component,
-        workflow as WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
-          handler: WorkflowHandler<ArgsValidator, ReturnsValidator>;
+        withMutation as WorkflowDefinition<ArgsValidator, ReturnsValidator> & {
+          handler: WorkflowHandler<ArgsValidator, ReturnsValidator, DataModel>;
+          internalMutation?: MutationBuilder<DataModel, "internal">;
         },
         this.options?.workpoolOptions,
       );
@@ -568,13 +596,16 @@ export class WorkflowManager {
     // to support, in order to get the maxParallelism / etc. in there.
     // Direct users of defineWorkflow should instead configure those values
     // via configuring the component directly.
-    return defineWorkflow<ArgsValidator, ReturnsValidator>(this.component, {
-      ...workflow,
-      workpoolOptions: {
-        ...this.options?.workpoolOptions,
-        ...workflow.workpoolOptions,
+    return defineWorkflow<ArgsValidator, ReturnsValidator, DataModel>(
+      this.component,
+      {
+        ...withMutation,
+        workpoolOptions: {
+          ...this.options?.workpoolOptions,
+          ...workflow.workpoolOptions,
+        },
       },
-    });
+    );
   }
 
   /**
