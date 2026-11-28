@@ -1,0 +1,182 @@
+---
+title: "Events: Pause, Suspend & Resume"
+sidebar_label: "Events"
+sidebar_position: 700
+description: "Use events to pause workflows, wait for external signals, and coordinate async flows"
+---
+
+# Events: Pause, Suspend & Resume
+
+Use `step.awaitEvent` inside a workflow handler to pause until an external event
+is triggered. This is useful for human-in-the-loop flows, approval gates, or
+coordinating with other asynchronous systems. The workflow consumes no resources
+while waiting.
+
+## Waiting for an event by name
+
+At its simplest, wait for an event **by name**:
+
+```ts
+await step.awaitEvent({ name: "eventName" });
+```
+
+This waits for the first un-consumed event with the name `"eventName"`, and
+continues immediately if one was already sent.
+
+## Sending events
+
+Send events from a mutation or action using the `sendEvent()` helper:
+
+```ts
+import { sendEvent } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+
+await sendEvent(ctx, components.workflow, {
+  name: "eventName",
+  workflowId,
+});
+```
+
+The event must be sent on the same workflow component that is waiting for it,
+and the `workflowId` must match the workflow that is waiting.
+
+## Sending values with events
+
+Pass a value with the event using the `value` property. For type safety and
+runtime validation, provide a validator on both sides:
+
+```ts
+const sharedValidator = v.number();
+
+// In the workflow:
+const event = await step.awaitEvent({ name, validator: sharedValidator });
+
+// From elsewhere:
+await sendEvent(ctx, components.workflow, { name, workflowId, value: 42 });
+```
+
+## Sending errors with events
+
+To signal a failure, use the `error` property. This causes `step.awaitEvent` to
+throw:
+
+```ts
+await sendEvent(ctx, components.workflow, {
+  name,
+  workflowId,
+  error: "An error occurred",
+});
+```
+
+## Sharing event definitions with defineEvent
+
+Use `defineEvent` to define an event's name and validator in one place, then
+share it between the workflow and the sender:
+
+```ts
+import { defineEvent } from "@convex-dev/workflow";
+
+const approvalEvent = defineEvent({
+  name: "approval",
+  validator: v.object({ approved: v.boolean() }),
+});
+
+// In the workflow:
+const approval = await step.awaitEvent(approvalEvent);
+
+// From a mutation:
+const value = { approved: true };
+await sendEvent(ctx, components.workflow, {
+  ...approvalEvent,
+  workflowId,
+  value,
+});
+```
+
+This is a convenience to create a typed `{ name, validator }` pair.
+
+## Dynamic events by ID
+
+Create events dynamically with `createEvent` when you need to generate unique
+event identifiers at runtime:
+
+```ts
+import { createEvent } from "@convex-dev/workflow";
+
+const eventId = await createEvent(ctx, components.workflow, {
+  name: "userResponse",
+  workflowId,
+});
+```
+
+Then wait for it by ID in the workflow:
+
+```ts
+await step.awaitEvent({ id: eventId });
+```
+
+This works well when there are dynamically defined events — for instance, a tool
+that is waiting for a response from a user. Save the `eventId` somewhere to be
+able to send the event later:
+
+```ts
+await sendEvent(ctx, components.workflow, { id: eventId });
+```
+
+Dynamic events also support sending values and errors, just like named events.
+
+## Patterns
+
+### Human-in-the-loop approval
+
+```ts
+export const approvalWorkflow = workflow
+  .define({
+    args: { requestId: v.id("requests") },
+  })
+  .handler(async (step, args): Promise<void> => {
+    // Prepare the request
+    await step.runMutation(internal.requests.markPending, {
+      requestId: args.requestId,
+    });
+
+    // Wait for human approval — no resources consumed while waiting
+    const decision = await step.awaitEvent({
+      name: "approval",
+      validator: v.object({ approved: v.boolean(), reason: v.optional(v.string()) }),
+    });
+
+    if (decision.approved) {
+      await step.runAction(internal.requests.fulfill, {
+        requestId: args.requestId,
+      });
+    } else {
+      await step.runMutation(internal.requests.reject, {
+        requestId: args.requestId,
+        reason: decision.reason,
+      });
+    }
+  });
+```
+
+### Coordinating between workflows
+
+Use events to synchronize workflows by having one workflow send an event that
+another is waiting for. Pass workflow IDs as arguments to establish the
+connection.
+
+### Timeout pattern
+
+Combine `step.sleep` with events to implement timeouts:
+
+```ts
+// Wait for approval, but time out after 24 hours
+const result = await Promise.race([
+  step.awaitEvent({ name: "approval" }),
+  step.sleep(24 * 60 * 60 * 1000).then(() => null),
+]);
+
+if (result === null) {
+  // Timed out — handle accordingly
+}
+```

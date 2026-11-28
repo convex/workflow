@@ -1,0 +1,182 @@
+---
+title: "Best Practices"
+sidebar_label: "Best Practices"
+sidebar_position: 900
+description: "Best practices for arguments, return values, workflow design, and production readiness"
+---
+
+# Best Practices
+
+## Keep arguments and return values small
+
+Every step's arguments and return value are stored in the workflow's journal.
+There is a **1 MB** limit on total step data and an **8 MB** limit on overall
+journal size within a single workflow execution.
+
+**Do this**: Pass IDs and small values between steps.
+
+```ts
+// Good: pass an ID, not the full document
+const docId = await step.runMutation(internal.docs.create, { content });
+await step.runAction(internal.docs.process, { docId });
+```
+
+**Don't do this**: Pass large objects or blobs between steps.
+
+```ts
+// Bad: large data stored in the journal
+const largeResult = await step.runAction(internal.docs.fetchAllData, {});
+await step.runMutation(internal.docs.saveAll, { data: largeResult });
+```
+
+If a step produces large output, store it in the database or file storage and
+return a reference (document ID or storage ID) instead.
+
+:::note
+If a step returns a value too large to fit in the journal, the workflow throws
+a catchable error. You can wrap the call in try/catch to handle the case, but
+the better fix is to keep step return values small to begin with.
+:::
+
+## Use inline steps for lightweight operations
+
+When a query or mutation is simple and reads/writes little data, use
+`{ inline: true }` to run it within the workflow's transaction. This avoids the
+overhead of workpool dispatch. See [Inline Steps](./inline-steps.mdx) for
+details.
+
+```ts
+// Quick lookup — good candidate for inline
+const user = await step.runQuery(internal.users.get, { userId }, { inline: true });
+```
+
+Reserve workpool dispatch (the default) for steps that do heavier work or need
+independent transaction budgets.
+
+## Use the returns validator
+
+Specify a `returns` validator for runtime validation of the workflow's return
+value. If validation fails, your `onComplete` handler receives an error instead
+of a corrupt value:
+
+```ts
+export const myWorkflow = workflow
+  .define({
+    args: { input: v.string() },
+    returns: v.object({ status: v.string(), count: v.number() }),
+  })
+  .handler(async (step, args) => {
+    // ...
+  });
+```
+
+## Annotate return types on regular functions
+
+Add explicit return type annotations to regular Convex function handlers to
+avoid circular type dependencies caused by `internal.*` references:
+
+```ts
+export const myFunction = action({
+  args: { prompt: v.string() },
+  handler: async (ctx, { prompt }): Promise<string> => {
+    // ...
+  },
+});
+```
+
+## Design for code stability
+
+If a workflow's step sequence changes while instances are in-flight, those
+instances fail with a determinism violation. To minimize this risk:
+
+- **Keep workflows short and focused** — fewer steps means a smaller window
+  where code must remain stable.
+- **Decompose with nested workflows** — each has its own journal and can be
+  updated independently.
+- **Use step names** — if you need to rename or move a step function, set
+  the `name` option to the old function name to maintain compatibility.
+
+## Batch work instead of creating many workflows
+
+On a Pro account, avoid exceeding 100 total concurrent steps across all
+workflows and workpools. Instead of creating one workflow per item:
+
+```ts
+// Better: one workflow processes a batch
+export const processBatch = workflow
+  .define({
+    args: { items: v.array(v.string()) },
+  })
+  .handler(async (step, args): Promise<void> => {
+    await step.runAction(internal.processor.processBatch, {
+      items: args.items,
+    });
+  });
+```
+
+## Clean up completed workflows
+
+Completed workflows are not automatically cleaned up. Use the `cleanup()`
+helper in your `onComplete` handler or a cron job to periodically clean old
+workflows:
+
+```ts
+import { cleanup, list } from "@convex-dev/workflow";
+import { components } from "./_generated/api";
+
+// In onComplete:
+await cleanup(ctx, components.workflow, args.workflowId);
+
+// Or via a cron, paginate through old workflows:
+const result = await list(ctx, components.workflow, { numItems: 50, cursor: null });
+for (const wf of result.page) {
+  if (wf.status !== "inProgress") {
+    await cleanup(ctx, components.workflow, wf.workflowId);
+  }
+}
+```
+
+## Handle errors gracefully
+
+Use try/catch around steps that might fail, especially action steps calling
+external APIs:
+
+```ts
+handler: async (step, args): Promise<void> => {
+  try {
+    await step.runAction(internal.api.callExternalService, args);
+  } catch (error) {
+    // Log and continue, or take compensating action
+    await step.runMutation(internal.errors.record, {
+      workflowId: step.workflowId,
+      error: String(error),
+    });
+  }
+}
+```
+
+## Use onComplete for critical post-workflow logic
+
+The `onComplete` handler is guaranteed to run exactly once, even if the workflow
+fails or is canceled. Use it for cleanup, notifications, or chaining to the
+next workflow:
+
+```ts
+import { start } from "@convex-dev/workflow";
+
+await start(ctx, internal.example.myWorkflow, args, {
+  onComplete: internal.example.handleComplete,
+  context: { userId }, // pass through any data you need
+});
+```
+
+## Limitations summary
+
+| Limit | Value |
+|---|---|
+| Step data (args + return values) per workflow | 1 MB |
+| Journal size per workflow | 8 MB |
+| Recommended max concurrent steps (Pro) | 100 |
+| Default max parallelism | 25 |
+| Side effects (`fetch`, `crypto.subtle`) in handler | Not allowed (use actions) |
+| `Math.random` in handler | Seeded PRNG (deterministic, not cryptographic) |
